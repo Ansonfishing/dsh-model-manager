@@ -19,13 +19,25 @@ test("node --check lib/client.js", () => {
   assert.equal(r.status, 0, `node --check failed: ${r.stderr}`);
 });
 
-test("折叠态:左列 0px,paneL 底色/边框/padding 清零,无 36px 残留", () => {
-  assert.match(src, /\.mm-body--collapsed\{grid-template-columns:0 1fr;\}/, "折叠 grid 必须是 0 1fr");
-  const m = src.match(/\.mm-body--collapsed \.mm-paneL\{([^}]*)\}/);
-  assert.ok(m, "缺少 .mm-body--collapsed .mm-paneL 覆盖");
-  assert.match(m[1], /padding:0/);
-  assert.match(m[1], /border-right:0/);
-  assert.match(m[1], /background:none/);
+test("折叠态:左列 0px,选择器特异性必须赢过 .mm-root .mm-body(0,2,0),无 36px 残留", () => {
+  // 特异性陷阱:折叠规则若只用单类 .mm-body--collapsed(0,1,0),
+  // 会被 .mm-root .mm-body{grid-template-columns:320px 1fr}(0,2,0) 覆盖,
+  // 折叠后仍是 320px 空列(用户实测:折叠完留一大片白)。
+  const m = src.match(/([^{]*\.mm-body--collapsed)\{grid-template-columns:0 1fr;\}/);
+  assert.ok(m, "缺少 0 1fr 折叠规则");
+  const classCount = (m[1].match(/\.mm-[A-Za-z0-9_-]+/g) || []).length;
+  assert.ok(classCount >= 2, `折叠规则选择器「${m[1].trim()}」特异性不足:需 ≥2 个类,实际 ${classCount}`);
+  const base = src.indexOf(".mm-root .mm-body{");
+  assert.ok(base >= 0, "基准 .mm-root .mm-body 规则缺失?");
+  assert.ok(m.index > base, "折叠规则必须声明在 .mm-root .mm-body 之后(特异性打平时靠顺序)");
+
+  const pm = src.match(/([^{]*\.mm-body--collapsed[^{]*)\.mm-paneL\{([^}]*)\}/);
+  assert.ok(pm, "缺少折叠态 .mm-paneL 覆盖");
+  const pc = (pm[1].match(/\.mm-[A-Za-z0-9_-]+/g) || []).length;
+  assert.ok(pc >= 2, `paneL 折叠覆盖选择器「${pm[0].slice(0, pm[0].indexOf("{"))}」特异性不足:需 ≥2 个类,实际 ${pc}`);
+  assert.match(pm[2], /padding:0/);
+  assert.match(pm[2], /border-right:0/);
+  assert.match(pm[2], /background:none/);
   assert.doesNotMatch(src, /grid-template-columns:36px 1fr/, "旧 36px 窄条残留");
 });
 
