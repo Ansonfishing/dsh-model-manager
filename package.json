@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-manager",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "DSH plugin: manage local model inference servers (llama.cpp / vLLM / SGLang) — registry, safe start/stop, parameter profile versioning with validation. Red lines: never pkill, never stop protected port 11437, never auto-restart dsh.",
   "type": "module",
   "main": "./index.js",
