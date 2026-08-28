@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>model-manager 渲染验证 harness</title>
+<script src="react.js"></script>
+<script src="react-dom.js"></script>
+<style>
+  html,body{margin:0;height:100%;background:#1e1e20;font-family:-apple-system,"Segoe UI","PingFang SC",sans-serif;}
+  #tabbar{padding:10px 16px;color:#a3a3a3;font-size:12px;}
+  #panel{height:calc(100% - 34px);min-height:700px;}
+</style>
+</head>
+<body>
+<div id="tabbar">模拟会话视图 tab 列 · scenario=<span id="sc">mock</span> · panel=<span id="pid"></span></div>
+<script>if (new URLSearchParams(location.search).get("chrome") === "0") document.getElementById("tabbar").style.display = "none";</script>
+<div id="panel"></div>
+<script>
+  /* mock 数据:演示用途,全部为虚构名称/端口/数值 */
+  const GPU_INFO = {
+    gpus: {
+      source: "cuda",
+      detectedAt: "2026-01-05T09:00:00.000Z",
+      cards: [
+        { index: 0, name: "Demo GPU A", shortName: "Demo A", memGb: 24 },
+        { index: 1, name: "Demo GPU B", shortName: "Demo B", memGb: 48 }
+      ]
+    },
+    lastError: null,
+    builtin: {}
+  };
+  const SERVERS = [
+    { port: 11437, framework: "llama", model: "Demo-27B-FP8", gpu: 1, note: null, managed: true, pid: 4242,
+      registeredAt: "2026-01-02T08:00:00.000Z", status: "running", health: "ok" },
+    { port: 11500, framework: "vllm", model: "DemoMoE-35B", gpu: 0, note: null, managed: false, pid: null,
+      registeredAt: "2026-01-03T08:00:00.000Z", status: "running", health: "ok" },
+    { port: 11501, framework: "sglang", model: "DemoMoE-35B", gpu: 0, note: null, managed: false, pid: null,
+      registeredAt: "2026-01-04T08:00:00.000Z", status: "stopped", health: "unreachable" }
+  ];
+  const PROFILES = [
+    { id: "p1", name: "Demo-27B-FP8 · llama · 卡1", framework: "llama", model: "Demo-27B-FP8",
+      modelPath: "/models/demo/Demo-27B-FP8", gpu: 1, active: true, port: 11437,
+      launchCommand: "-np 2 -c 524288 -ctk q8_0 --threads 16",
+      contextWindow: 262144, kvBytesPerToken: 6400 },
+    { id: "p2", name: "DemoMoE-35B · llama · 卡0", framework: "llama", model: "DemoMoE-35B",
+      modelPath: "/models/demo/DemoMoE-35B", gpu: 0, active: true,
+      launchCommand: "-np 1 -c 262144 -ctk q8_0",
+      contextWindow: 262144, kvBytesPerToken: 6400 },
+    { id: "p3", name: "DemoMoE-35B · vllm · 卡0", framework: "vllm", model: "DemoMoE-35B",
+      modelPath: "/models/demo/DemoMoE-35B", gpu: 0, active: false,
+      launchCommand: "--model /models/demo/DemoMoE-35B --max-model-len 262144 --gpu-memory-utilization 0.9",
+      contextWindow: 262144, kvBytesPerToken: 4096 },
+    { id: "p4", name: "DemoMoE-35B · sglang · 卡0", framework: "sglang", model: "DemoMoE-35B",
+      modelPath: "/models/demo/DemoMoE-35B", gpu: 0, active: false,
+      launchCommand: "--model-path /models/demo/DemoMoE-35B --context-length 262144 --mem-fraction-static 0.85 --enable-cache-report",
+      contextWindow: 262144, kvBytesPerToken: 4096 }
+  ];
+  const BENCH = [
+    { profile: "Demo-27B-FP8 · llama · 卡1", port: 11437, tps: 84.2, tokens: 256, maxTokens: 256, ms: 3039, at: "2026-01-05T09:12:00.000Z" },
+    { profile: "DemoMoE-35B · llama · 卡0", port: 11500, tps: 41.7, tokens: 256, maxTokens: 256, ms: 6139, at: "2026-01-05T09:30:00.000Z" }
+  ];
+  const FRAMEWORKS = {
+    frameworks: { llama: { exe: "" }, sglang: { exe: "" }, vllm: { exe: "" } },
+    defaults: { llama: "llama-server", sglang: "python3", vllm: "python3" }
+  };
+
+  const sc = new URLSearchParams(location.search).get("scenario") || "mock";
+  document.getElementById("sc").textContent = sc;
+  const MOCK = {
+    "/api/mm/servers": SERVERS,
+    "/api/mm/profiles": PROFILES,
+    "/api/mm/benchmarks": BENCH,
+    "/api/mm/frameworks": FRAMEWORKS,
+    "/api/mm/gpus": GPU_INFO
+  };
+  window.fetch = (url) => {
+    const u = String(url);
+    if (MOCK[u]) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(MOCK[u]) });
+    if (u.startsWith("/api/mm/log")) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ lines: [
+      "[09:12:01] llama_model_loader: loaded 41 blocks, 65 tensors, mmproj ok",
+      "[09:12:02] llama_context: initializing, n_slots = 2, n_ctx_slot = 262144",
+      "[09:12:03] server: listening on 127.0.0.1:11500",
+      "[09:12:40] HTTP: 200 POST /v1/chat/completions · 512 tok · 41.7 t/s"
+    ] }) });
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+  };
+  window.__ModuleLoader__ = { load: (spec) => { window.__spec = spec; } };
+</script>
+<script src="client-under-test.js"></script>
+<script>
+  const req = (n) => (n === "react" ? window.React : null);
+  const exp = window.__spec.factory(req);
+  let Panel = null;
+  exp.apply({
+    slots: {
+      inject: (name, fn) => { if (name === "conversation.view") fn(); },
+      register: (cfg, comp) => { Panel = comp; document.getElementById("pid").textContent = cfg.id + " (order " + cfg.order + ")"; }
+    }
+  });
+  ReactDOM.createRoot(document.getElementById("panel")).render(React.createElement(Panel));
+</script>
+</body>
+</html>

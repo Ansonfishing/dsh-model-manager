@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型管理 v3 · 白底 + 官方参数目录 + 日志闭环</title>
+<style>
+  :root{
+    --bg:#ffffff; --page:#eef1f5; --layer:#f6f8fa; --layer2:#eef1f4; --line:#d0d7de; --line2:#b6bec7;
+    --text:#1f2328; --muted:#57606a; --faint:#8c959f;
+    --accent:#0969da; --success:#1a7f37; --warn:#9a6700; --danger:#cf222e;
+    --warn-bg:#fff8c5; --add-bg:#dafbe1; --del-bg:#ffebe9;
+    --hover:rgba(175,184,193,.22);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --code:ui-monospace,SFMono-Regular,"JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--page);color:var(--text);font-family:var(--font);font-size:12.5px;line-height:1.5;padding:24px;display:flex;justify-content:center;}
+  .frame{width:1220px;max-width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 12px 36px rgba(31,35,40,.10);}
+
+  .head{padding:14px 16px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px;}
+  .headRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .title{font-size:14px;font-weight:600;}
+  .spacer{flex:1;}
+  .pill{display:inline-flex;align-items:center;gap:5px;min-height:22px;padding:0 9px;border:1px solid var(--line);border-radius:999px;background:var(--layer);color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .pill b{font-weight:600;color:var(--text);}
+  .pill--ok{border-color:color-mix(in srgb,var(--success) 34%,var(--line));color:var(--success);background:color-mix(in srgb,var(--success) 7%,var(--bg));}
+  .pill--fail{border-color:color-mix(in srgb,var(--danger) 42%,var(--line));color:var(--danger);background:color-mix(in srgb,var(--danger) 6%,var(--bg));}
+  .pill--hot{border-color:color-mix(in srgb,var(--warn) 42%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--bg));}
+  .pill--hot b{color:var(--warn);font-weight:500;}
+  .pill--warn{border-color:color-mix(in srgb,var(--warn) 40%,var(--line));color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--bg));}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none;}
+  .dot--on{background:var(--success);box-shadow:0 0 6px color-mix(in srgb,var(--success) 60%,transparent);}
+  .dot--off{background:var(--faint);}
+  .dot--fail{background:var(--danger);box-shadow:0 0 6px color-mix(in srgb,var(--danger) 60%,transparent);}
+  .btn{min-height:30px;padding:4px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;transition:background-color .12s,border-color .12s,transform .12s;font-family:var(--font);}
+  .btn:hover{background:var(--hover);}
+  .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:.4;cursor:default;}
+  .btn--primary{border-color:color-mix(in srgb,var(--accent) 45%,var(--line2));color:var(--accent);font-weight:500;background:color-mix(in srgb,var(--accent) 5%,var(--bg));}
+  .btn--danger{border-color:color-mix(in srgb,var(--danger) 45%,var(--line2));color:var(--danger);font-weight:500;}
+  .btn--sm{min-height:26px;padding:2px 10px;font-size:11px;}
+  .meta{color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums;}
+  select.sel{min-height:26px;padding:2px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);color:var(--muted);font-size:11px;font-family:var(--font);cursor:pointer;}
+
+  .extStrip{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--layer);flex-wrap:wrap;}
+  .fw{flex:none;border:1px solid var(--line);border-radius:999px;padding:0 7px;font-size:10.5px;line-height:18px;color:var(--muted);background:var(--bg);white-space:nowrap;}
+  .fw--llama{color:#6e40c9;border-color:color-mix(in srgb,#6e40c9 34%,var(--line));}
+  .fw--sglang{color:#116329;border-color:color-mix(in srgb,#116329 34%,var(--line));}
+  .fw--vllm{color:#9a3412;border-color:color-mix(in srgb,#9a3412 34%,var(--line));}
+
+  .body{display:grid;grid-template-columns:320px 1fr;}
+  .paneL{border-right:1px solid var(--line);padding:10px 8px;max-height:700px;overflow:auto;background:color-mix(in srgb,var(--layer) 55%,var(--bg));}
+  .kicker{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted);padding:4px 8px;}
+  .mGroup{margin-bottom:12px;}
+  .mHead{padding:5px 8px;display:flex;gap:6px;align-items:center;min-width:0;}
+  .mHead .mp{font-family:var(--code);font-size:10.5px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+  .ver{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent;min-width:0;}
+  .ver:hover{background:var(--hover);}
+  .ver--sel{background:var(--bg);border-color:var(--line);box-shadow:0 1px 2px rgba(31,35,40,.06);}
+  .ver .vt{font-family:var(--code);font-size:10.5px;border:1px solid var(--line2);border-radius:5px;padding:0 5px;line-height:16px;color:var(--text);flex:none;}
+  .ver--run .vt{border-color:color-mix(in srgb,var(--success) 52%,var(--line2));color:var(--success);}
+  .ver--fail .vt{border-color:color-mix(in srgb,var(--danger) 52%,var(--line2));color:var(--danger);}
+  .ver .vn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11.5px;min-width:0;}
+  .ver .vr{font-family:var(--code);font-size:10px;color:var(--success);flex:none;}
+  .ver .vf{font-family:var(--code);font-size:10px;color:var(--danger);flex:none;}
+  .ver .vpend{font-size:9.5px;color:var(--faint);border:1px solid var(--line2);border-radius:999px;padding:0 5px;line-height:15px;flex:none;white-space:nowrap;}
+  .bench{font-size:10px;color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:0 6px;line-height:15px;flex:none;}
+
+  .paneR{padding:12px 16px 16px;max-height:700px;overflow:auto;}
+  .vHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .vTitle{font-size:14px;font-weight:600;margin-right:2px;}
+  .dirtyPill{display:none;}
+  .dirtyPill--on{display:inline-flex;}
+  .metaStrip{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
+  .secLabel{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px;display:flex;align-items:center;gap:8px;}
+  .secLabel .meta{margin-left:auto;font-weight:400;letter-spacing:0;}
+
+  /* 参数表:参数 | 值 | 说明 */
+  .pTable{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg);}
+  .pHead{display:grid;grid-template-columns:185px 240px 1fr;padding:6px 10px;background:var(--layer);border-bottom:1px solid var(--line);font-size:11px;color:var(--faint);}
+  .pHead3{grid-template-columns:185px 240px 240px;}
+  .pRow{display:grid;grid-template-columns:185px 240px 1fr 24px;align-items:center;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);}
+  .pRow:last-child{border-bottom:none;}
+  .pRow3{grid-template-columns:185px 240px 240px;}
+  .pRow:hover{background:color-mix(in srgb,var(--hover) 55%,transparent);}
+  .pFlag{font-family:var(--code);font-size:11px;color:var(--accent);padding:5px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pVal{padding:3px 6px;min-width:0;}
+  .pVal input[type=text]{width:100%;min-width:0;background:transparent;border:1px solid transparent;border-radius:5px;color:var(--text);font-family:var(--code);font-size:11px;padding:3px 7px;}
+  .pVal input[type=text]:focus{outline:none;border-color:color-mix(in srgb,var(--accent) 55%,var(--line2));background:var(--bg);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 14%,transparent);}
+  .pVal input[type=text]::placeholder{color:var(--faint);opacity:.75;}
+  .pVal input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0 8px;}
+  .pVal .txt{font-family:var(--code);font-size:11px;color:var(--text);padding:3px 7px;word-break:break-all;}
+  .pDesc{font-size:10.5px;color:var(--muted);padding:4px 10px;line-height:1.45;white-space:normal;word-break:break-word;}
+  .pDesc .dflt{color:var(--faint);font-family:var(--code);font-size:10px;}
+  .pBase .txt,.pCur .txt{font-family:var(--code);font-size:11px;padding:5px 10px;word-break:break-all;}
+  .pDel{padding:4px 8px;text-align:center;color:var(--faint);cursor:pointer;font-size:11px;user-select:none;grid-column:4;justify-self:end;}
+  .pDel:hover{color:var(--danger);}
+  .pRow--locked{opacity:.55;background:var(--layer);}
+  .pRow--locked .pVal input{cursor:default;}
+  .pRow--locked .pFlag{color:var(--faint);}
+  /* 添加参数 picker */
+  .pAdd{padding:6px 10px;font-size:11.5px;color:var(--accent);cursor:pointer;display:flex;gap:6px;align-items:center;}
+  .pAdd:hover{background:var(--hover);}
+  .picker{border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:0 0 8px 8px;border-top:none;background:var(--layer);max-height:230px;overflow:auto;padding:6px 0;}
+  .picker input{width:calc(100% - 20px);margin:2px 10px 6px;padding:5px 9px;border:1px solid var(--line2);border-radius:6px;font-size:11.5px;font-family:var(--font);}
+  .picker input:focus{outline:none;border-color:var(--accent);}
+  .pkGroup{font-size:10.5px;font-weight:600;letter-spacing:.05em;color:var(--muted);padding:5px 12px 2px;}
+  .pkItem{display:grid;grid-template-columns:175px 90px 1fr auto;padding:3px 12px;cursor:pointer;gap:8px;align-items:baseline;}
+  .recChip{flex:none;font-size:10px;color:var(--success);border:1px solid color-mix(in srgb,var(--success) 34%,var(--line));background:color-mix(in srgb,var(--success) 7%,var(--bg));border-radius:999px;padding:0 6px;line-height:15px;white-space:nowrap;}
+  .pVal input.rec-diff{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line2));background:color-mix(in srgb,var(--warn-bg) 55%,transparent);}
+  .pkItem:hover{background:var(--hover);}
+  .pkItem .f{font-family:var(--code);font-size:11px;color:var(--accent);}
+  .pkItem .d{font-family:var(--code);font-size:10px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pkItem .s{font-size:10.5px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* diff 状态 */
+  .pRow--chg{background:color-mix(in srgb,var(--warn-bg) 55%,transparent);}
+  .pRow--chg .pBase .txt{color:var(--faint);text-decoration:line-through;}
+  .pRow--chg .pCur .txt{color:var(--warn);font-weight:600;}
+  .pRow--add{background:color-mix(in srgb,var(--add-bg) 45%,transparent);}
+  .pRow--add .pFlag{color:var(--success);}
+  .pRow--add .pCur .txt{color:var(--success);font-weight:600;}
+  .pRow--del{background:color-mix(in srgb,var(--del-bg) 45%,transparent);}
+  .pRow--del .pFlag{color:var(--danger);text-decoration:line-through;}
+  .diffLegend{display:flex;gap:12px;font-size:11px;color:var(--muted);margin:6px 0;}
+  .diffLegend .lg{display:inline-flex;align-items:center;gap:5px;}
+  .sw{width:9px;height:9px;border-radius:3px;display:inline-block;}
+  .sw--chg{background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line));}
+  .sw--add{background:var(--add-bg);border:1px solid color-mix(in srgb,var(--success) 40%,var(--line));}
+  .sw--del{background:var(--del-bg);border:1px solid color-mix(in srgb,var(--danger) 40%,var(--line));}
+
+  .vFoot{margin-top:10px;display:flex;flex-direction:column;gap:4px;}
+  .okLine{color:var(--success);font-size:11.5px;}
+  .warnLine{color:var(--warn);font-size:11.5px;}
+  .errLine{color:var(--danger);font-size:11.5px;}
+
+  /* 启动日志 */
+  .logBox{margin-top:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .logHead{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--layer);border-bottom:1px solid var(--line);}
+  .logHead .lt{font-size:11.5px;font-weight:600;}
+  .logBox--fail{border-color:color-mix(in srgb,var(--danger) 45%,var(--line));}
+  .logBox--fail .logHead{background:color-mix(in srgb,var(--danger) 5%,var(--bg));}
+  .logBody{background:#f6f8fa;padding:8px 10px;font-family:var(--code);font-size:10.5px;line-height:1.55;max-height:180px;overflow:auto;color:#424a53;white-space:pre-wrap;word-break:break-all;}
+  .logBody .ln{display:block;}
+  .logBody .err{color:var(--danger);font-weight:600;background:color-mix(in srgb,var(--danger) 7%,transparent);display:block;border-radius:3px;}
+  .logBody .okl{color:var(--success);}
+
+  .unified{margin:12px 16px 0;border:1px dashed color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--accent) 3%,var(--bg));padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;}
+  .unified .tag{border:1px solid color-mix(in srgb,var(--accent) 34%,var(--line));color:var(--accent);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;background:color-mix(in srgb,var(--accent) 7%,var(--bg));}
+  .unified code{font-family:var(--code);font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px;}
+  .unified .routes{color:var(--muted);font-family:var(--code);font-size:11px;}
+  .unified .routes b{color:var(--success);font-weight:500;}
+
+  .drawer{margin:0 16px 16px;border:1px solid var(--line);border-radius:8px;background:var(--layer);display:none;flex-direction:column;gap:2px;overflow:hidden;}
+  .drawer--open{display:flex;}
+  .drawerHead{padding:8px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;}
+  .finding{display:flex;gap:8px;align-items:flex-start;padding:6px 12px;font-size:11.5px;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent);}
+  .finding:first-of-type{border-top:none;}
+  .fIcon{flex:none;width:14px;text-align:center;}
+  .fOk{color:var(--success);} .fWarn{color:var(--warn);} .fBad{color:var(--danger);}
+  .finding .where{font-family:var(--code);color:var(--faint);font-size:10.5px;flex:none;}
+  .finding .msg{color:var(--muted);} .finding .msg b{color:var(--text);font-weight:500;}
+
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:#24292f;border:1px solid #24292f;color:#f6f8fa;border-radius:8px;padding:8px 16px;font-size:12px;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;box-shadow:0 8px 24px rgba(31,35,40,.35);max-width:70vw;}
+  .toast--show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast b{color:#7ee787;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <div class="head">
+    <div class="headRow">
+      <span class="title">本地模型管理</span>
+      <span class="pill pill--ok"><span class="dot dot--on"></span><b>1</b>&nbsp;运行中</span>
+      <span class="pill pill--fail"><span class="dot dot--fail"></span><b>1</b>&nbsp;启动失败</span>
+      <span class="pill pill--fail"><b>2</b>&nbsp;不可行</span>
+      <span class="pill pill--warn"><b>2</b>&nbsp;vLLM 不可用</span>
+      <span class="pill"><b>12</b>&nbsp;模型 · <b>21</b>&nbsp;参数版本</span>
+      <span class="pill">4090&nbsp;<b>空闲</b>&nbsp;·&nbsp;11436 可用</span>
+      <span class="pill pill--hot">卡1&nbsp;占用&nbsp;<b>Demo-FP8 2.1&nbsp;@11437</b>&nbsp;·&nbsp;~46G/96G</span>
+      <div class="spacer"></div>
+      <button class="btn btn--sm" onclick="toast('已刷新')">刷新</button>
+      <button class="btn btn--sm btn--primary" onclick="toggleDrawer()">健康检查</button>
+    </div>
+    <div class="meta">每 30s 自动刷新 · 卡互斥(单卡单模)· 参数按框架官方顺序,说明为中文(悬停看英文)· 推荐值=本模型激活版本实测 · 日志支持复制 / 发送到会话</div>
+  </div>
+
+  <!-- 外部服务 -->
+  <div class="extStrip">
+    <span class="kicker" style="padding:0">外部服务</span>
+    <span class="dot dot--on"></span>
+    <b style="font-size:12px">Demo-27B-FP8</b>
+    <span class="fw fw--sglang">SGLang</span>
+    <span class="pill" style="min-height:18px;line-height:16px;padding:0 6px;font-size:10px;border-color:color-mix(in srgb,var(--warn) 40%,var(--line));color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--bg));">⚠ DSH 在用 · 恒拒停止</span>
+    <span class="meta">11437 · 卡1 · ~46G · 262K · D16 mrr4 · fp8 KV</span>
+    <div class="spacer"></div>
+    <span class="meta">非本管理器启动(无启动日志)· 保护端口,停止恒拒(含 force)</span>
+  </div>
+
+  <div class="body">
+    <div class="paneL">
+      <div class="kicker">模型 · 参数版本</div>
+      <div id="models"></div>
+    </div>
+    <div class="paneR" id="right"></div>
+  </div>
+
+  <div class="unified">
+    <span class="tag">统一端点 · P3 规划</span>
+    <span>一个端口跑所有模型:<code>http://127.0.0.1:11435/v1</code></span>
+    <span class="routes">Demo-27B-FP8 → <b>11437</b> · Demo-APEX-MTP → <b>11436</b> · 按 body.model 路由 · 流式字节透传 · 切模型自动接管占用的卡</span>
+  </div>
+
+  <div class="drawer" id="drawer">
+    <div class="drawerHead">健康检查 <span class="meta">/api/mm/doctor</span></div>
+    <div class="finding"><span class="fIcon fOk">✓</span><span class="where">11437</span><span class="msg"><b>health ok</b> · Demo-27B-FP8 2.1 · ctx 262144 · DFLASH draft16 · cache-report 开</span></div>
+    <div class="finding"><span class="fIcon fOk">✓</span><span class="where">11436</span><span class="msg"><b>无服务</b> · 4090 空闲 · 可起 1.4 / 1.2 / 1.11(llama P0)· P2:1.7 / 1.8 / 1.12</span></div>
+    <div class="finding"><span class="fIcon fBad">✗</span><span class="where">3.1 DemoFlash2</span><span class="msg">权重缺陷:<b>compress_ratios=[0]</b> 长度 1 &lt; block_count 43,llama-server 启动即 runtime_error · 需重下 4 片</span></div>
+    <div class="finding"><span class="fIcon fBad">✗</span><span class="where">3.5 DemoFlash</span><span class="msg"><b>qwen4exp 架构不识</b> · 需合 ggml-org/llama.cpp PR #27742 重建(或 Unsloth Desktop)</span></div>
+    <div class="finding"><span class="fIcon fWarn">⚠</span><span class="where">1.9 / 2.7 vLLM</span><span class="msg">vLLM 0.27.1 启动即崩:array.array 为 Py3.12+ 语法,venv 3.11 · 未记吞吐</span></div>
+    <div class="finding"><span class="fIcon fWarn">⚠</span><span class="where">2.1 vs 11437</span><span class="msg">文档块 draft7 与实测 <b>16</b>(block_size 8)不一致 · 在跑实例用 16</span></div>
+    <div class="finding"><span class="fIcon fOk">✓</span><span class="where">versions</span><span class="msg"><b>21/21 校验通过</b> · 全部 -c ÷ -np 整除、无托管参数越权、端口无冲突</span></div>
+    <div class="finding"><span class="fIcon fOk">✓</span><span class="where">GPU</span><span class="msg">4090 0G(空闲)· 卡1 ~46G/96G · 无温度/功耗告警</span></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 框架官方参数目录(实机 --help / argparse ground truth) ================= */
+const CAT_LLAMA=[
+{"f":"-t","t":"int","d":"-1","s":"number of CPU threads to use during generation (default: -1)","z":"生成时使用的 CPU 线程数(默认 -1,自动)","g":"perf"},
+{"f":"-tb","t":"int","d":"same as --threads","s":"number of threads to use during batch and prompt processing (default: same as --threads)","z":"批处理与提示词处理的线程数(默认同 -t)","g":"perf"},
+{"f":"-c","t":"int","d":"0","s":"size of the prompt context (default: 0, 0 = loaded from model)","z":"提示词上下文大小;0=从模型元数据读取(= -np 个 slot 共享此总预算)","g":"context"},
+{"f":"-n","t":"int","d":"-1","s":"number of tokens to predict (default: -1, -1 = infinity)","z":"预测 token 数;-1=不限(默认)","g":"context"},
+{"f":"-b","t":"int","d":"2048","s":"logical maximum batch size","z":"逻辑最大批大小","g":"context"},
+{"f":"--swa-full","t":"bool","d":"","s":"use full-size SWA cache (default: false)","z":"使用全尺寸 SWA(滑动窗口注意力)缓存(默认关)","g":"kv"},
+{"f":"-fa","t":"enum","d":"on,off,auto","s":"set Flash Attention use ('on', 'off', or 'auto', default: 'auto')","z":"Flash Attention 开关('on'/'off'/'auto',默认 auto)","g":"perf"},
+{"f":"--rope-scaling","t":"enum","d":"none,linear,yarn","s":"RoPE frequency scaling method, defaults to linear unless specified by the model","z":"RoPE 频率缩放方式,模型未指定时默认 linear","g":"context"},
+{"f":"-kvo","t":"bool","d":"","s":"whether to enable KV cache offloading (default: enabled)","z":"是否开启 KV 缓存卸载到 CPU(默认开)","g":"kv"},
+{"f":"-ctk","t":"enum","d":"f32,f16,bf16,q8_0,q4_0,q4_1,iq4_nl,q5_0,q5_1","s":"KV cache data type for K (default: f16)","z":"K 缓存数据类型(默认 f16)","g":"kv"},
+{"f":"-ctv","t":"enum","d":"f32,f16,bf16,q8_0,q4_0,q4_1,iq4_nl,q5_0,q5_1","s":"KV cache data type for V (default: f16)","z":"V 缓存数据类型(默认 f16)","g":"kv"},
+{"f":"-lm","t":"enum","d":"auto,none,mmap,mlock,mmap+mlock,dio","s":"model loading mode (default: auto)","z":"模型加载方式(默认 auto)","g":"model"},
+{"f":"--device","t":"str","d":"","s":"comma-separated list of devices to use for offloading (none = don't offload)","z":"参与卸载的设备列表,逗号分隔(none=不卸载)","g":"model"},
+{"f":"-ncmoe","t":"int","d":"","s":"keep the Mixture of Experts (MoE) weights of the first N layers in the CPU","z":"MoE 前 N 层专家权重保留在 CPU","g":"model"},
+{"f":"-ngl","t":"str","d":"auto","s":"max. number of layers to store in VRAM, either an exact number, 'auto', or 'all'","z":"上 GPU 的最大层数;精确数字、'auto' 或 'all'(默认 auto=全量)","g":"model"},
+{"f":"-sm","t":"enum","d":"none,layer,row,tensor","s":"how to split the model across multiple GPUs (default: layer)","z":"多 GPU 间切分模型的方式(默认 layer)","g":"model"},
+{"f":"-mg","t":"int","d":"0","s":"the GPU to use for the model (with split-mode = none), or for intermediate results","z":"split-mode=none 时模型所用 GPU,或中间结果所用 GPU","g":"model"},
+{"f":"--fit","t":"enum","d":"on,off","s":"whether to adjust unset arguments to fit in device memory (default: 'on')","z":"是否自动调整未设参数以塞进显存(默认 on)","g":"model"},
+{"f":"-m","t":"str","d":"","s":"model path to load","z":"要加载的模型文件路径(插件托管,勿手填)","g":"model"},
+{"f":"-hf","t":"str","d":"","s":"Hugging Face model repository; quant is optional, case-insensitive, default to Q4_K_M","z":"Hugging Face 模型仓库,量化可选(大小写不敏感,默认 Q4_K_M)","g":"model"},
+{"f":"-v","t":"bool","d":"","s":"Set verbosity level to infinity (i.e. log all messages, useful for debugging)","z":"日志级别设为无穷(输出全部消息,调试用)","g":"misc"},
+{"f":"--offline","t":"bool","d":"","s":"Offline mode: forces use of cache, prevents network access","z":"离线模式:强制走缓存,禁止联网","g":"misc"},
+{"f":"-lv","t":"int","d":"3","s":"Set the verbosity threshold. Messages with a higher verbosity will be ignored.","z":"日志详细度阈值,高于该级别的消息被忽略(默认 3)","g":"misc"},
+{"f":"--spec-draft-type-k","t":"enum","d":"f32,f16,bf16,q8_0,q4_0,q4_1,iq4_nl,q5_0,q5_1","s":"KV cache data type for K for the draft model (default: f16)","z":"草稿模型 K 缓存数据类型(默认 f16)","g":"spec"},
+{"f":"-s","t":"int","d":"-1","s":"RNG seed (default: -1, use random seed for -1)","z":"随机种子;-1=随机(默认)","g":"sampling"},
+{"f":"--temp","t":"float","d":"0.80","s":"temperature","z":"采样温度(默认 0.80)","g":"sampling"},
+{"f":"--top-k","t":"int","d":"40","s":"top-k sampling (default: 40, 0 = disabled)","z":"top-k 采样;0=禁用(默认 40)","g":"sampling"},
+{"f":"--top-p","t":"float","d":"0.95","s":"top-p sampling (default: 0.95, 1.0 = disabled)","z":"top-p 采样;1.0=禁用(默认 0.95)","g":"sampling"},
+{"f":"--min-p","t":"float","d":"0.05","s":"min-p sampling (default: 0.05, 0.0 = disabled)","z":"min-p 采样;0.0=禁用(默认 0.05)","g":"sampling"},
+{"f":"--repeat-penalty","t":"float","d":"1.00","s":"penalize repeat sequence of tokens (default: 1.00, 1.0 = disabled)","z":"重复序列惩罚;1.0=禁用(默认 1.00)","g":"sampling"},
+{"f":"-j","t":"str","d":"","s":"JSON schema to constrain generations (https://json-schema.org/), e.g. {}","z":"用 JSON Schema 约束生成结果,如 {}","g":"sampling"},
+{"f":"--spec-draft-hf","t":"str","d":"","s":"Same as --hf-repo, but for the draft model (default: unused)","z":"草稿模型的 HF 仓库(同 --hf,默认不用)","g":"spec"},
+{"f":"--spec-draft-n-max","t":"int","d":"3","s":"number of tokens to draft for speculative decoding","z":"投机解码每次起草的 token 数(默认 3)","g":"spec"},
+{"f":"--spec-draft-n-min","t":"int","d":"0","s":"minimum number of draft tokens to use for speculative decoding","z":"投机解码最少起草 token 数(默认 0)","g":"spec"},
+{"f":"--spec-draft-ngl","t":"str","d":"auto","s":"max. number of draft model layers to store in VRAM, either an exact number, 'auto'","z":"草稿模型上 GPU 的最大层数(默认 auto)","g":"spec"},
+{"f":"--spec-draft-model","t":"str","d":"","s":"draft model for speculative decoding (default: unused)","z":"投机解码的草稿模型路径(默认不用)","g":"spec"},
+{"f":"--spec-type","t":"enum","d":"none,draft-simple,draft-eagle3,draft-mtp,draft-dflash,draft-dspark,ngram-simple,ngram-map-k,ngram-map-k4v,ngram-mod,ngram-cache","s":"comma-separated list of types of speculative decoding to use (default: none)","z":"启用的投机解码类型,逗号分隔(默认 none)","g":"spec"},
+{"f":"-ctxcp","t":"int","d":"32","s":"max number of context checkpoints to create per slot","z":"每个 slot 最多创建的上下文检查点数(默认 32)","g":"context"},
+{"f":"-cram","t":"int","d":"8192","s":"set the maximum cache size in MiB (default: 8192, -1 - no limit, 0 - disable)","z":"KV 缓存大小上限 MiB;0=禁用,-1=不限(默认 8192)","g":"kv"},
+{"f":"-kvu","t":"bool","d":"","s":"use single unified KV buffer shared across all sequences (default: enabled if auto)","z":"所有序列共用单个统一 KV 缓冲(默认 auto 时开启)","g":"kv"},
+{"f":"-np","t":"int","d":"-1","s":"number of server slots (default: -1, -1 = auto)","z":"server 的 slot 数(并行会话数);-1=自动(默认)","g":"context"},
+{"f":"-cb","t":"bool","d":"","s":"whether to enable continuous batching (a.k.a dynamic batching)","z":"启用连续批处理(动态批处理)","g":"context"},
+{"f":"-mm","t":"str","d":"","s":"path to a multimodal projector file. see tools/mtmd/README.md","z":"多模态投影器文件路径(视觉模型)","g":"model"},
+{"f":"--mmproj-auto","t":"bool","d":"","s":"whether to use multimodal projector file (if available), useful when using -hf","z":"自动使用可用的 mmproj 文件(配 -hf 时有用)","g":"model"},
+{"f":"--image-min-tokens","t":"int","d":"read from model","s":"minimum number of tokens each image can take, only used by vision models with dynamic","z":"每张图最少占用的 token 数(视觉模型)","g":"model"},
+{"f":"--image-max-tokens","t":"int","d":"read from model","s":"maximum number of tokens each image can take, only used by vision models with dynamic","z":"每张图最多占用的 token 数(视觉模型)","g":"model"},
+{"f":"-a","t":"str","d":"","s":"set model name aliases, comma-separated (to be used by API)","z":"模型名别名,逗号分隔(API 调用时使用)","g":"server"},
+{"f":"--host","t":"str","d":"127.0.0.1","s":"ip address to listen, or bind to an UNIX socket if the address ends with .sock","z":"监听地址;以 .sock 结尾则绑定 UNIX socket(默认 127.0.0.1)","g":"server"},
+{"f":"--port","t":"int","d":"8080","s":"port to listen","z":"监听端口(默认 8080;插件托管,勿手填)","g":"server"},
+{"f":"--ui","t":"bool","d":"","s":"whether to enable the Web UI (default: enabled)","z":"是否开启 Web UI(默认开)","g":"server"},
+{"f":"--api-key","t":"str","d":"","s":"API key to use for authentication, multiple keys can be provided as a comma-separated","z":"API 鉴权密钥,多个用逗号分隔","g":"server"},
+{"f":"-to","t":"int","d":"3600","s":"server read/write timeout in seconds (default: 3600)","z":"server 读写超时秒数(默认 3600)","g":"server"},
+{"f":"--threads-http","t":"int","d":"-1","s":"number of threads used to process HTTP requests","z":"处理 HTTP 请求的线程数(默认 -1=自动)","g":"perf"},
+{"f":"--cache-prompt","t":"bool","d":"","s":"whether to enable prompt caching (default: enabled)","z":"启用提示词缓存(默认开)","g":"kv"},
+{"f":"--cache-reuse","t":"int","d":"0","s":"min chunk size to attempt reusing from the cache via KV shifting (default: 0)","z":"经 KV shifting 尝试复用的最小缓存块大小(默认 0)","g":"kv"},
+{"f":"--metrics","t":"bool","d":"","s":"enable prometheus compatible metrics endpoint","z":"开启 Prometheus 兼容的指标端点","g":"server"},
+{"f":"--slots","t":"bool","d":"","s":"expose slots monitoring endpoint (default: enabled)","z":"暴露 slot 监控端点(默认开)","g":"server"},
+{"f":"--jinja","t":"bool","d":"","s":"whether to use jinja template engine for chat (default: enabled)","z":"用 jinja 模板引擎处理 chat(默认开)","g":"misc"},
+{"f":"--reasoning-format","t":"enum","d":"none,deepseek,deepseek-legacy,auto","s":"controls whether thought tags are allowed and/or extracted from the response, and in","z":"思考标签是否允许/提取及格式","g":"misc"},
+{"f":"--reasoning-budget","t":"int","d":"-1","s":"token budget for thinking: -1 for unrestricted, 0 for immediate end, N>0 for budget","z":"思考 token 预算:-1 不限,0 立即结束,N>0 为预算(默认 -1)","g":"misc"},
+{"f":"--reasoning-preserve","t":"bool","d":"","s":"preserve reasoning trace in the full history, not just the last assistant message","z":"在完整历史中保留推理轨迹,而非仅最后一条助手消息","g":"misc"},
+{"f":"--chat-template-file","t":"str","d":"","s":"set custom jinja chat template file (default: template taken from model's metadata)","z":"自定义 jinja chat 模板文件(默认取模型元数据)","g":"misc"},
+{"f":"-sps","t":"float","d":"0.10","s":"how much the prompt of a request must match the prompt of a slot in order to use that slot","z":"请求提示词需与 slot 提示词匹配多高才能复用该 slot(默认 0.10)","g":"context"},
+{"f":"--spec-default","t":"bool","d":"","s":"enable default speculative decoding config","z":"启用默认投机解码配置","g":"spec"}
+];
+const CAT_SGLANG=[
+{"f":"--model-path","t":"str","d":"required","s":"The path of the model weights. This can be a local folder or a Hugging Face repo ID.","z":"模型权重路径;本地目录或 HF 仓库 ID(插件托管,勿手填)","g":"model"},
+{"f":"--tokenizer-path","t":"str","d":"null","s":"The path of the tokenizer.","z":"tokenizer 路径","g":"model"},
+{"f":"--load-format","t":"enum","d":"[\"auto\",\"pt\",\"safetensors\",\"npcache\",\"dummy\",\"sharded_state\",\"presharded\",\"gguf\",\"bitsandbytes\",\"mistral\",\"layered\",\"flash_rl\",\"remote\",\"remote_instance\",\"fastsafetensors\",\"private\",\"runai_streamer\"]","s":"The format of the model weights to load. \"auto\" will try to load the weights in the safetensors format.","z":"权重加载格式;'auto' 优先试 safetensors(默认)","g":"model"},
+{"f":"--trust-remote-code","t":"bool","d":"false","s":"Whether or not to allow for custom models defined on the Hub in their own modeling files.","z":"允许 Hub 上模型自带的自定义 modeling 代码","g":"model"},
+{"f":"--context-length","t":"int","d":"null(=model max)","s":"The model's maximum context length. Defaults to None (will use the value from the model's config).","z":"模型最大上下文长度;null=用模型配置值(默认)","g":"memory"},
+{"f":"--enable-multimodal","t":"bool","d":"null(=auto)","s":"Enable the multimodal functionality for the served model.","z":"启用多模态能力","g":"parser"},
+{"f":"--revision","t":"str","d":"null","s":"The specific model version to use. It can be a branch name, a tag name, or a commit id.","z":"指定模型版本:分支/标签/commit","g":"model"},
+{"f":"--dtype","t":"enum","d":"[\"auto\",\"half\",\"float16\",\"bfloat16\",\"float\",\"float32\"]","s":"Data type for model weights and activations. \"auto\" will use FP16 precision for FP32 and FP16 models.","z":"权重与激活精度;'auto' 对 FP32/FP16 模型用 FP16","g":"model"},
+{"f":"--quantization","t":"enum","d":"[\"awq\",\"fp8\",\"mxfp8\",\"gptq\",\"marlin\",\"gptq_marlin\",\"awq_marlin\",\"bitsandbytes\",\"gguf\",\"modelopt\",\"modelopt_fp8\",\"modelopt_fp4\",\"nvfp4_online\",\"auto\",\"compressed-tensors\",\"unquant\"]","s":"The quantization method.","z":"量化方法","g":"model"},
+{"f":"--kv-cache-dtype","t":"enum","d":"[\"auto\",\"fp8_e5m2\",\"fp8_e4m3\",\"mxfp8\",\"bf16\",\"bfloat16\",\"nvfp4\",\"fp4_mx_block16\",\"fp4_e2m1\"]","s":"Data type for kv cache storage. \"auto\" will use model data type.","z":"KV 缓存存储类型;'auto'=跟随模型精度","g":"memory"},
+{"f":"--mem-fraction-static","t":"float","d":"null","s":"The fraction of the memory used for static allocation (model weights and KV cache memory pool).","z":"静态分配显存占比(权重+KV 池);null=自动(48G≈0.92,96G≈0.75)","g":"memory"},
+{"f":"--max-running-requests","t":"int","d":"null","s":"The maximum number of running requests.","z":"最大并发请求数","g":"perf"},
+{"f":"--max-queued-requests","t":"int","d":"null","s":"The maximum number of queued requests. Ignored when using disaggregation-mode.","z":"最大排队请求数","g":"memory"},
+{"f":"--max-total-tokens","t":"int","d":"null","s":"The maximum number of tokens in the memory pool. If not specified, it will be automatically determined.","z":"内存池中 token 上限;不设=自动决定","g":"memory"},
+{"f":"--chunked-prefill-size","t":"int","d":"null","s":"The maximum number of tokens in a chunk for the chunked prefill. -1 means no chunked prefill.","z":"分块预填充每块最大 token 数;-1=不分块","g":"memory"},
+{"f":"--max-prefill-tokens","t":"int","d":"16384","s":"The maximum number of tokens in a prefill batch. The real bound will be the maximum of this value.","z":"预填充批最大 token 数(默认 16384)","g":"memory"},
+{"f":"--schedule-policy","t":"enum","d":"[\"lpm\",\"random\",\"fcfs\",\"dfs-weight\",\"lof\",\"priority\",\"routing-key\"]","s":"The scheduling policy of the requests.","z":"请求调度策略","g":"perf"},
+{"f":"--radix-eviction-policy","t":"enum","d":"[\"lru\",\"lfu\",\"slru\",\"priority\"]","s":"The eviction policy of radix trees. 'lru' = Least Recently Used, 'lfu' = Least Frequently Used.","z":"radix 树驱逐策略;lfu=最少使用","g":"cache"},
+{"f":"--disable-radix-cache","t":"bool","d":"false","s":"Disable RadixAttention for prefix caching.","z":"关闭 RadixAttention 前缀缓存","g":"cache"},
+{"f":"--disable-overlap-schedule","t":"bool","d":"false","s":"Disable the overlap scheduler, which overlaps the CPU scheduler with GPU model worker.","z":"关闭 CPU 调度与 GPU 执行的重叠","g":"perf"},
+{"f":"--num-continuous-decode-steps","t":"int","d":"1","s":"Run multiple continuous decoding steps to reduce scheduling overhead.","z":"连续解码步数,减少调度开销(默认 1)","g":"perf"},
+{"f":"--enable-mixed-chunk","t":"bool","d":"false","s":"Enabling mixing prefill and decode in a batch when using chunked prefill.","z":"分块预填充时允许 prefill/decode 混批","g":"perf"},
+{"f":"--nnodes","t":"int","d":"1","s":"The number of nodes.","z":"节点数(默认 1)","g":"parallelism"},
+{"f":"--node-rank","t":"int","d":"0","s":"The node rank.","z":"本节点序号(默认 0)","g":"parallelism"},
+{"f":"--tp-size","t":"int","d":"1","s":"The tensor parallelism size. (旧版别名 --tp / --tensor-parallel-size)","z":"张量并行度(旧别名 --tp/--tensor-parallel-size,默认 1)","g":"parallelism"},
+{"f":"--pp-size","t":"int","d":"1","s":"The pipeline parallelism size.","z":"流水线并行度(默认 1)","g":"parallelism"},
+{"f":"--dp-size","t":"int","d":"1","s":"The data parallelism size.","z":"数据并行度(默认 1)","g":"parallelism"},
+{"f":"--enable-dp-attention","t":"bool","d":"false","s":"Enabling data parallelism for attention and tensor parallelism for FFN.","z":"attention 用数据并行、FFN 用张量并行","g":"parallelism"},
+{"f":"--device","t":"str","d":"null","s":"The device to use ('cuda', 'xpu', 'hpu', 'npu', 'cpu', 'musa'). Defaults to auto-detection.","z":"设备(cuda/xpu/hpu/npu/cpu/musa),默认自动检测","g":"misc"},
+{"f":"--base-gpu-id","t":"int","d":"0","s":"The base GPU ID to start allocating GPUs from. Useful when running multiple instances on the same node.","z":"GPU 分配起始 ID;同机多实例时有用(默认 0)","g":"misc"},
+{"f":"--watchdog-timeout","t":"float","d":"300","s":"Set watchdog timeout in seconds. If a forward batch takes longer than this, the server will be restarted.","z":"看门狗超时秒数,前向批超时会重启(默认 300)","g":"misc"},
+{"f":"--host","t":"str","d":"127.0.0.1","s":"The host of the HTTP server.","z":"HTTP 服务地址(默认 127.0.0.1)","g":"server"},
+{"f":"--port","t":"int","d":"30000","s":"The port of the HTTP server.","z":"HTTP 服务端口(默认 30000;插件托管,勿手填)","g":"server"},
+{"f":"--api-key","t":"str","d":"null","s":"Set API key of the server. It is also used in the OpenAI API compatible server.","z":"API 密钥,OpenAI 兼容端点同样生效","g":"server"},
+{"f":"--served-model-name","t":"str","d":"null","s":"Override the model name returned by the v1/models endpoint in OpenAI API server.","z":"覆盖 /v1/models 返回的模型名","g":"server"},
+{"f":"--chat-template","t":"str","d":"null","s":"The builtin chat template name or the path of the chat template file.","z":"内置 chat 模板名或模板文件路径","g":"parser"},
+{"f":"--completion-template","t":"str","d":"null","s":"The builtin completion template name or the path of the completion template file.","z":"内置 completion 模板名或模板文件路径","g":"parser"},
+{"f":"--enable-cache-report","t":"bool","d":"false","s":"Return number of cached tokens in usage.prompt_tokens_details for each openai request.","z":"在 usage.prompt_tokens_details 回报缓存命中 token 数(DSH 缓存命中率显示依赖此开关!)","g":"cache"},
+{"f":"--default-chat-template-kwargs","t":"str","d":"null","s":"Default chat template kwargs applied to every request when not overridden per-request.","z":"默认 chat 模板参数,可被请求级覆盖","g":"parser"},
+{"f":"--log-level","t":"str","d":"info","s":"The logging level of all loggers. (CRITICAL / ERROR / WARNING / INFO / DEBUG)","z":"日志级别(CRITICAL/ERROR/WARNING/INFO/DEBUG,默认 info)","g":"server"},
+{"f":"--enable-metrics","t":"bool","d":"false","s":"Enable log prometheus metrics.","z":"输出 Prometheus 指标","g":"server"},
+{"f":"--grammar-backend","t":"enum","d":"[\"xgrammar\",\"outlines\",\"llguidance\",\"none\"]","s":"Choose the backend for grammar-guided decoding.","z":"语法引导解码后端","g":"parser"},
+{"f":"--mamba-backend","t":"enum","d":"[\"triton\",\"flashinfer\"]","s":"Choose the kernel backend for Mamba SSM operations. Default is 'triton'.","z":"Mamba SSM 内核后端(默认 triton)","g":"mamba"},
+{"f":"--cuda-graph-max-bs-decode","t":"int","d":"null","s":"Maximum batch size captured for the decode cuda graph.","z":"decode CUDA 图捕获的最大批大小","g":"perf"},
+{"f":"--cuda-graph-max-bs-prefill","t":"int","d":"null","s":"Maximum batch size captured for the prefill cuda graph.","z":"prefill CUDA 图捕获的最大批大小","g":"perf"},
+{"f":"--speculative-algorithm","t":"str","d":"null","s":"Speculative algorithm. Builtins: EAGLE, EAGLE3, NEXTN, STANDALONE, NGRAM, DFLASH, DSPARK.","z":"投机解码算法: EAGLE/EAGLE3/NEXTN/STANDALONE/NGRAM/DFLASH/DSPARK","g":"speculative"},
+{"f":"--speculative-draft-model-path","t":"str","d":"null","s":"The path of the draft model weights. This can be a local folder or a Hugging Face repo ID.","z":"草稿模型权重路径;本地目录或 HF 仓库","g":"speculative"},
+{"f":"--speculative-num-steps","t":"int","d":"null","s":"The number of steps sampled from draft model in Speculative Decoding.","z":"投机解码中草稿模型采样步数","g":"speculative"},
+{"f":"--speculative-eagle-topk","t":"int","d":"null","s":"The number of tokens sampled from the draft model in eagle2 each step.","z":"eagle2 每步从草稿模型采样的 token 数","g":"speculative"},
+{"f":"--speculative-num-draft-tokens","t":"int","d":"null","s":"The number of tokens sampled from the draft model in Speculative Decoding.","z":"投机解码起草 token 数;DFLASH 时须等于草稿 block_size","g":"speculative"},
+{"f":"--speculative-attention-mode","t":"enum","d":"[\"prefill\",\"decode\"]","s":"Attention backend for speculative decoding operations (both target verify and draft extend).","z":"投机解码注意力后端(target verify 与 draft extend 共用)","g":"speculative"},
+{"f":"--ep-size","t":"int","d":"1","s":"The expert parallelism size.","z":"专家并行度(默认 1)","g":"parallelism"},
+{"f":"--max-mamba-cache-size","t":"int","d":"null","s":"The maximum size of the mamba cache.","z":"mamba 缓存最大容量","g":"mamba"},
+{"f":"--mamba-ssm-dtype","t":"enum","d":"[\"float32\",\"bfloat16\",\"float16\"]","s":"The data type of the SSM states in mamba cache. If not set, will be read from model config.","z":"mamba 缓存中 SSM 状态精度;不设=读模型配置","g":"mamba"},
+{"f":"--mamba-max-states-per-path","t":"int","d":"-1","s":"Maximum number of cached Mamba states retained per root-to-tail path (-1 means unlimited).","z":"每条根到尾路径最多保留的 Mamba 状态数;-1 不限(默认)","g":"mamba"},
+{"f":"--mamba-full-memory-ratio","t":"float","d":"0.9","s":"The ratio of mamba state memory to full kv cache memory.","z":"mamba 状态显存占 KV 总显存的比例(默认 0.9)","g":"mamba"},
+{"f":"--mamba-radix-cache-strategy","t":"enum","d":"[\"auto\",\"no_buffer\",\"extra_buffer\",\"extra_buffer_lazy\"]","s":"The strategy to use for mamba radix cache.","z":"mamba radix 缓存策略","g":"mamba"},
+{"f":"--mamba-track-interval","t":"int","d":"256","s":"The interval to track the mamba state during decode.","z":"解码时追踪 mamba 状态的间隔(默认 256)","g":"mamba"},
+{"f":"--linear-attn-backend","t":"enum","d":"[\"triton\",\"cutedsl\",\"flashinfer\",\"flashkda\",\"nvidia_kda\",\"ptx_kda\",\"helion\"]","s":"The default kernel backend for linear attention (GDN/KDA).","z":"线性注意力(GDN/KDA)默认内核后端","g":"mamba"},
+{"f":"--enable-hierarchical-cache","t":"bool","d":"false","s":"Enable hierarchical cache","z":"启用分层(主机内存)缓存","g":"cache"},
+{"f":"--hicache-ratio","t":"float","d":"null","s":"The ratio of the size of host KV cache memory pool to the size of device pool.","z":"主机 KV 池与设备池的大小比","g":"cache"},
+{"f":"--hicache-write-policy","t":"enum","d":"[\"write_back\",\"write_through\",\"write_through_selective\"]","s":"The write policy of hierarchical cache.","z":"分层缓存写入策略","g":"cache"},
+{"f":"--hicache-io-backend","t":"enum","d":"[\"direct\",\"kernel\",\"kernel_ascend\"]","s":"The IO backend for KV cache transfer between CPU and GPU.","z":"CPU↔GPU KV 传输 IO 后端","g":"cache"},
+{"f":"--enable-lora","t":"bool","d":"null(=auto)","s":"Enable LoRA support for the model. Automatically True if lora paths are given.","z":"启用 LoRA;给了 LoRA 路径时自动开","g":"misc"},
+{"f":"--disaggregation-mode","t":"enum","d":"[\"null\",\"prefill\",\"decode\"]","s":"Only used for PD disaggregation. \"null\" = normal mode.","z":"PD 分离模式;'null'=常规","g":"misc"},
+{"f":"--download-dir","t":"str","d":"null","s":"Model download directory for huggingface.","z":"HF 模型下载目录","g":"misc"},
+{"f":"--reasoning-parser","t":"enum","d":"[\"auto\",\"deepseek-r1\",\"deepseek-v3\",\"deepseek-v4\",\"glm45\",\"kimi\",\"muse\",\"qwen3\",\"qwen3-thinking\",\"mistral\",\"gemma4\",\"inkling\"]","s":"Specify the parser for reasoning models. Use 'auto' to detect from chat template.","z":"推理模型解析器;'auto' 从 chat 模板自动检测","g":"parser"},
+{"f":"--tool-call-parser","t":"enum","d":"[\"auto\",\"deepseekv3\",\"deepseekv4\",\"glm45\",\"kimi_k2\",\"kimi_k3\",\"qwen\",\"qwen25\",\"qwen3_coder\",\"muse\",\"minimax-m3\",\"inkling\",\"hermes\"]","s":"Specify the parser for handling tool-call interactions. Use 'auto' to detect from chat template.","z":"工具调用解析器;'auto' 从 chat 模板自动检测","g":"parser"},
+{"f":"--disable-cuda-graph","t":"bool","d":"false","s":"Deprecated. Use --cuda-graph-backend-{decode,prefill}=disabled instead.","z":"已弃用,改用 --cuda-graph-backend-{decode,prefill}=disabled","g":"perf"}
+];
+const CATS={"llama.cpp":CAT_LLAMA,"SGLang":CAT_SGLANG};
+/* 长/短别名归一(llama.cpp help 用短形) */
+const ALIAS={"--model":"-m","--mmproj":"-mm","--cache-type-k":"-ctk","--cache-type-v":"-ctv","--flash-attn":"-fa","-md":"--spec-draft-model"};
+/* 中文说明(官方 help 原文译注,悬停 title 仍保留英文) */
+const ZH={
+"-t":"生成时使用的 CPU 线程数(默认 -1,自动)",
+"-tb":"批处理与提示词处理的线程数(默认同 -t)",
+"-c":"提示词上下文大小;0=从模型元数据读取(= -np 个 slot 共享此总预算)",
+"-n":"预测 token 数;-1=不限(默认)",
+"-b":"逻辑最大批大小",
+"--swa-full":"使用全尺寸 SWA(滑动窗口注意力)缓存(默认关)",
+"-fa":"Flash Attention 开关('on'/'off'/'auto',默认 auto)",
+"--rope-scaling":"RoPE 频率缩放方式,模型未指定时默认 linear",
+"-kvo":"是否开启 KV 缓存卸载到 CPU(默认开)",
+"-ctk":"K 缓存数据类型(默认 f16)",
+"-ctv":"V 缓存数据类型(默认 f16)",
+"-lm":"模型加载方式(默认 auto)",
+"--device":"参与卸载的设备列表,逗号分隔(none=不卸载)",
+"-ncmoe":"MoE 前 N 层专家权重保留在 CPU",
+"-ngl":"上 GPU 的最大层数;精确数字、'auto' 或 'all'(默认 auto=全量)",
+"-sm":"多 GPU 间切分模型的方式(默认 layer)",
+"-mg":"split-mode=none 时模型所用 GPU,或中间结果所用 GPU",
+"--fit":"是否自动调整未设参数以塞进显存(默认 on)",
+"-m":"要加载的模型文件路径(插件托管,勿手填)",
+"-hf":"Hugging Face 模型仓库,量化可选(大小写不敏感,默认 Q4_K_M)",
+"-v":"日志级别设为无穷(输出全部消息,调试用)",
+"--offline":"离线模式:强制走缓存,禁止联网",
+"-lv":"日志详细度阈值,高于该级别的消息被忽略(默认 3)",
+"--spec-draft-type-k":"草稿模型 K 缓存数据类型(默认 f16)",
+"-s":"随机种子;-1=随机(默认)",
+"--temp":"采样温度(默认 0.80)",
+"--top-k":"top-k 采样;0=禁用(默认 40)",
+"--top-p":"top-p 采样;1.0=禁用(默认 0.95)",
+"--min-p":"min-p 采样;0.0=禁用(默认 0.05)",
+"--repeat-penalty":"重复序列惩罚;1.0=禁用(默认 1.00)",
+"-j":"用 JSON Schema 约束生成结果,如 {}",
+"--spec-draft-hf":"草稿模型的 HF 仓库(同 --hf,默认不用)",
+"--spec-draft-n-max":"投机解码每次起草的 token 数(默认 3)",
+"--spec-draft-n-min":"投机解码最少起草 token 数(默认 0)",
+"--spec-draft-ngl":"草稿模型上 GPU 的最大层数(默认 auto)",
+"--spec-draft-model":"投机解码的草稿模型路径(默认不用)",
+"--spec-type":"启用的投机解码类型,逗号分隔(默认 none)",
+"-ctxcp":"每个 slot 最多创建的上下文检查点数(默认 32)",
+"-cram":"KV 缓存大小上限 MiB;0=禁用,-1=不限(默认 8192)",
+"-kvu":"所有序列共用单个统一 KV 缓冲(默认 auto 时开启)",
+"-np":"server 的 slot 数(并行会话数);-1=自动(默认)",
+"-cb":"启用连续批处理(动态批处理)",
+"-mm":"多模态投影器文件路径(视觉模型)",
+"--mmproj-auto":"自动使用可用的 mmproj 文件(配 -hf 时有用)",
+"--image-min-tokens":"每张图最少占用的 token 数(视觉模型)",
+"--image-max-tokens":"每张图最多占用的 token 数(视觉模型)",
+"-a":"模型名别名,逗号分隔(API 调用时使用)",
+"--host":"监听地址;以 .sock 结尾则绑定 UNIX socket(默认 127.0.0.1)",
+"--port":"监听端口(默认 8080;插件托管,勿手填)",
+"--ui":"是否开启 Web UI(默认开)",
+"--api-key":"API 鉴权密钥,多个用逗号分隔",
+"-to":"server 读写超时秒数(默认 3600)",
+"--threads-http":"处理 HTTP 请求的线程数(默认 -1=自动)",
+"--cache-prompt":"启用提示词缓存(默认开)",
+"--cache-reuse":"经 KV shifting 尝试复用的最小缓存块大小(默认 0)",
+"--metrics":"开启 Prometheus 兼容的指标端点",
+"--slots":"暴露 slot 监控端点(默认开)",
+"--jinja":"用 jinja 模板引擎处理 chat(默认开)",
+"--reasoning-format":"思考标签是否允许/提取及格式",
+"--reasoning-budget":"思考 token 预算:-1 不限,0 立即结束,N>0 为预算(默认 -1)",
+"--reasoning-preserve":"在完整历史中保留推理轨迹,而非仅最后一条助手消息",
+"--chat-template-file":"自定义 jinja chat 模板文件(默认取模型元数据)",
+"-sps":"请求提示词需与 slot 提示词匹配多高才能复用该 slot(默认 0.10)",
+"--spec-default":"启用默认投机解码配置",
+"--model-path":"模型权重路径;本地目录或 HF 仓库 ID(插件托管,勿手填)",
+"--tokenizer-path":"tokenizer 路径",
+"--load-format":"权重加载格式;'auto' 优先试 safetensors(默认)",
+"--trust-remote-code":"允许 Hub 上模型自带的自定义 modeling 代码",
+"--context-length":"模型最大上下文长度;null=用模型配置值(默认)",
+"--enable-multimodal":"启用多模态能力",
+"--revision":"指定模型版本:分支/标签/commit",
+"--dtype":"权重与激活精度;'auto' 对 FP32/FP16 模型用 FP16",
+"--quantization":"量化方法",
+"--kv-cache-dtype":"KV 缓存存储类型;'auto'=跟随模型精度",
+"--mem-fraction-static":"静态分配显存占比(权重+KV 池);null=自动(48G≈0.92,96G≈0.75)",
+"--max-running-requests":"最大并发请求数",
+"--max-queued-requests":"最大排队请求数",
+"--max-total-tokens":"内存池中 token 上限;不设=自动决定",
+"--chunked-prefill-size":"分块预填充每块最大 token 数;-1=不分块",
+"--max-prefill-tokens":"预填充批最大 token 数(默认 16384)",
+"--schedule-policy":"请求调度策略",
+"--radix-eviction-policy":"radix 树驱逐策略;lfu=最少使用",
+"--disable-radix-cache":"关闭 RadixAttention 前缀缓存",
+"--disable-overlap-schedule":"关闭 CPU 调度与 GPU 执行的重叠",
+"--num-continuous-decode-steps":"连续解码步数,减少调度开销(默认 1)",
+"--enable-mixed-chunk":"分块预填充时允许 prefill/decode 混批",
+"--nnodes":"节点数(默认 1)",
+"--node-rank":"本节点序号(默认 0)",
+"--tp-size":"张量并行度(旧别名 --tp/--tensor-parallel-size,默认 1)",
+"--pp-size":"流水线并行度(默认 1)",
+"--dp-size":"数据并行度(默认 1)",
+"--enable-dp-attention":"attention 用数据并行、FFN 用张量并行",
+"--base-gpu-id":"GPU 分配起始 ID;同机多实例时有用(默认 0)",
+"--watchdog-timeout":"看门狗超时秒数,前向批超时会重启(默认 300)",
+"--served-model-name":"覆盖 /v1/models 返回的模型名",
+"--chat-template":"内置 chat 模板名或模板文件路径",
+"--completion-template":"内置 completion 模板名或模板文件路径",
+"--enable-cache-report":"在 usage.prompt_tokens_details 回报缓存命中 token 数(DSH 缓存命中率显示依赖此开关!)",
+"--default-chat-template-kwargs":"默认 chat 模板参数,可被请求级覆盖",
+"--log-level":"日志级别(CRITICAL/ERROR/WARNING/INFO/DEBUG,默认 info)",
+"--enable-metrics":"输出 Prometheus 指标",
+"--grammar-backend":"语法引导解码后端",
+"--mamba-backend":"Mamba SSM 内核后端(默认 triton)",
+"--cuda-graph-max-bs-decode":"decode CUDA 图捕获的最大批大小",
+"--cuda-graph-max-bs-prefill":"prefill CUDA 图捕获的最大批大小",
+"--speculative-algorithm":"投机解码算法: EAGLE/EAGLE3/NEXTN/STANDALONE/NGRAM/DFLASH/DSPARK",
+"--speculative-draft-model-path":"草稿模型权重路径;本地目录或 HF 仓库",
+"--speculative-num-steps":"投机解码中草稿模型采样步数",
+"--speculative-eagle-topk":"eagle2 每步从草稿模型采样的 token 数",
+"--speculative-num-draft-tokens":"投机解码起草 token 数;DFLASH 时须等于草稿 block_size",
+"--speculative-attention-mode":"投机解码注意力后端(target verify 与 draft extend 共用)",
+"--ep-size":"专家并行度(默认 1)",
+"--max-mamba-cache-size":"mamba 缓存最大容量",
+"--mamba-ssm-dtype":"mamba 缓存中 SSM 状态精度;不设=读模型配置",
+"--mamba-max-states-per-path":"每条根到尾路径最多保留的 Mamba 状态数;-1 不限(默认)",
+"--mamba-full-memory-ratio":"mamba 状态显存占 KV 总显存的比例(默认 0.9)",
+"--mamba-radix-cache-strategy":"mamba radix 缓存策略",
+"--mamba-track-interval":"解码时追踪 mamba 状态的间隔(默认 256)",
+"--linear-attn-backend":"线性注意力(GDN/KDA)默认内核后端",
+"--enable-hierarchical-cache":"启用分层(主机内存)缓存",
+"--hicache-ratio":"主机 KV 池与设备池的大小比",
+"--hicache-write-policy":"分层缓存写入策略",
+"--hicache-io-backend":"CPU↔GPU KV 传输 IO 后端",
+"--enable-lora":"启用 LoRA;给了 LoRA 路径时自动开",
+"--disaggregation-mode":"PD 分离模式;'null'=常规",
+"--download-dir":"HF 模型下载目录",
+"--reasoning-parser":"推理模型解析器;'auto' 从 chat 模板自动检测",
+"--tool-call-parser":"工具调用解析器;'auto' 从 chat 模板自动检测",
+"--disable-cuda-graph":"已弃用,改用 --cuda-graph-backend-{decode,prefill}=disabled"
+};
+/* 跨框架同名参数按框架覆盖(避免全局字典串义) */
+const ZH_OVERRIDES={"SGLang":{
+"--device":"使用设备('cuda'/'xpu'/'hpu'/'npu'/'cpu'/'musa'),默认自动检测",
+"--host":"HTTP 服务监听地址(默认 127.0.0.1)",
+"--port":"HTTP 服务端口(默认 30000;插件托管,勿手填)",
+"--api-key":"服务端 API 密钥,OpenAI 兼容端点同样生效"
+}};
+function zhFor(fw,f){const o=ZH_OVERRIDES[fw];return (o&&o[f])||ZH[f]||null;}
+const GROUP_ZH={model:"模型",server:"服务",context:"上下文",sampling:"采样",spec:"投机解码",speculative:"投机解码",kv:"KV 缓存",perf:"性能",cache:"缓存",parallelism:"并行",mamba:"Mamba",memory:"显存",parser:"解析/模板",misc:"其他"};
+function norm(f){return ALIAS[f]||f;}
+function catItem(fw,f){const c=CATS[fw];if(!c)return null;return c.find(x=>x.f===norm(f))||null;}
+function sortedParams(fw,params){
+  return params.map((p,i)=>({p,i,ci:catItem(fw,p[0])?CATS[fw].findIndex(x=>x.f===norm(p[0])):1e9}))
+    .sort((a,b)=>(a.ci-b.ci)||(a.i-b.i)).map(x=>x.p);
+}
+/* 推荐值 = 该模型「激活版本」(实测/审计过的组合)里的参数值 */
+function recFor(m,f){const vs=m.versions||[];const v=vs.find(x=>x.active)||vs[0];if(!v)return null;for(const p of (v.params||[]))if(norm(p[0])===norm(f))return p[1];return null;}
+function isOn(val){return !(val==="false"||val==="off");}
+function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="bool")return isOn(cur)!==isOn(rec);return cur!==rec;}
+
+/* ================= 数据(演示) ================= */
+const MODELS=[
+ {id:"m1",path:"demo/DemoMoE-35B-APEX-MTP-GGUF",short:"Demo APEX-MTP（GGUF）",fw:"llama.cpp",fwc:"llama",
+  versions:[
+   {tag:"1.4",note:"4090 · 实测",active:true,bench:"≈84 t/s · img≈53",
+    managed:[["-m","/models/demo/…/DemoMoE-35B-APEX-MTP-I-Balanced.gguf"],["--port","11436(4090 推断)"]],gpu:"4090",ctx:"262K/slot ×2",kv:"3.28G(q4_0)",vram:"≈33G/48G",
+    valid:["-c 524288 ÷ -np 2 = 262144 = 原生 ✓","全文档最高吞吐(84 tok/s)、最低显存"],warns:[],
+    log:["[19:05:11] llama_model_loader: loaded 41 blocks, 65 tensors, mmproj ok","[19:05:12] llama_context: initializing, n_slots = 2, n_ctx_slot = 262144","[19:05:12] server: listening on 127.0.0.1:11436","[19:06:40] HTTP: 200 POST /v1/chat/completions · 512 tok · 84.1 t/s"],
+    params:[["-mm","/models/demo/…/mmproj.gguf"],["-a","DemoMoE-35B-APEX-MTP"],["--spec-type","draft-mtp"],["--spec-draft-n-max","8"],["-c","524288"],["-np","2"],["--jinja",""],["-ctk","q4_0"],["-ctv","q4_0"],["-fa","on"],["--temp","1.0"],["--top-p","0.95"],["--top-k","64"]]},
+   {tag:"v2",note:"多并发",
+    managed:[["-m","同上"],["--port","自动"]],gpu:"4090",ctx:"262K/slot ×2",kv:"3.28G(q4_0)",vram:"31G/48G",
+    valid:["-c 524288 ÷ -np 2 = 262144 ✓"],warns:[],
+    params:[["-mm","…/mmproj.gguf"],["-a","DemoMoE-35B-APEX-MTP"],["--spec-type","draft-mtp"],["--spec-draft-n-max","4"],["-c","524288"],["-np","2"],["-ctk","q4_0"],["-ctv","q4_0"],["-fa","on"],["--temp","1.0"],["--top-p","0.95"],["--top-k","40"],["--reasoning-budget","2048"]]},
+   {tag:"v1",note:"初版",
+    managed:[["-m","同上"],["--port","自动"]],gpu:"4090",ctx:"131K/slot ×2 ⚠",kv:"1.6G(q4_0)",vram:"~16G/48G",
+    valid:["-c 262144 ÷ -np 2 = 131072 < 原生 262144(per-slot 低于 DSH 默认 → compaction 阈值算错)"],warns:["初版 -c 未按「原生 × -np」约定,已被 1.4 修正"],
+    params:[["-mm","…/mmproj.gguf"],["-a","DemoMoE-35B-APEX-MTP"],["-c","262144"],["-np","2"],["-fa","on"],["--temp","1.0"],["--top-p","0.95"],["--top-k","40"]]}
+  ]},
+ {id:"m2",path:"unsloth/Demo-27B-GGUF",short:"Demo-27B Q8_K_XL（GGUF）",fw:"llama.cpp",fwc:"llama",
+  versions:[
+   {tag:"1.2",note:"4090 · MTP · 实测",active:true,bench:"≈43 t/s · img≈53",
+    managed:[["-m","/models/unsloth/Demo-27B-GGUF/Demo-27B-UD-Q8_K_XL.gguf"],["--port","11436(4090 推断)"]],gpu:"4090",ctx:"262K/slot ×2",kv:"≈12.6G(q4_0)",vram:"≈44G/48G ⚠",
+    valid:["-c 524288 ÷ -np 2 = 262144 ✓"],warns:["≈44G@-c524288 贴 4090 上限;起不来回退 -c 262144(≈39G)"],
+    params:[["--mmproj","/models/unsloth/Demo-27B-GGUF/mmproj-F16.gguf"],["--spec-type","draft-mtp"],["--spec-draft-model","…/MTP/mtp-Demo-27B-Q4_0.gguf"],["--spec-draft-n-max","2"],["-a","Demo-27B-UD-Q8_K_XL"],["-c","524288"],["-np","2"],["--jinja",""],["--chat-template-file","…/Qwen-Fixed-Chat-Templates/chat_template.jinja"],["-ctk","q4_0"],["-ctv","q4_0"],["-fa","on"],["--reasoning-preserve",""],["--temp","1.0"],["--top-p","0.95"],["--top-k","20"]]},
+   {tag:"v3",note:"拉满 OOM(复现)",failed:true,
+    managed:[["-m","…/Demo-27B-UD-Q8_K_XL.gguf"],["--port","11438(自动推断)"]],gpu:"4090",ctx:"262K/slot ×2",kv:"~22G(f16 默认)",vram:"OOM",
+    valid:[],warns:["f16 KV ~22G + 权重 28G ≈ 50G > 48G → 必然 OOM(复现留档)"],
+    params:[["-mm","…/mmproj-F16.gguf"],["--spec-type","draft-mtp"],["--spec-draft-model","…/mtp-Demo-27B-Q4_0.gguf"],["--spec-draft-n-max","2"],["-a","Demo-27B-UD-Q8_K_XL"],["-c","524288"],["-np","2"],["--jinja",""],["--chat-template-file","…/chat_template.jinja"],["-fa","on"],["--temp","1.0"],["--top-p","0.95"],["--top-k","20"],["-lv","3"]],
+    failedLog:["[10:02:11] llama_model_loader: loaded 65 layers, 1204 tensors","[10:02:14] init: model loaded · n_ctx = 524288 · n_slots = 2","[10:02:15] KV cache: 21.9 GiB (f16) + weights 28.0 GiB = 49.9 GiB","[10:02:16] ERROR: failed to allocate KV buffer (need 21.9 GiB, free 13.1 GiB)","[10:02:16] ERROR: CUDA_ERROR_OUT_OF_MEMORY · device 4090 (48G)","[10:02:16] llama-server: exiting (code 1)"]},
+   {tag:"v1",note:"初版(无投机)",
+    managed:[["-m","同上"],["--port","自动"]],gpu:"4090",ctx:"262K/slot ×2",kv:"~11G(q4_0)",vram:"~44G/48G",
+    valid:["-c 524288 ÷ -np 2 = 262144 ✓"],warns:[],
+    params:[["-mm","…/mmproj-F16.gguf"],["-a","Demo-27B-UD-Q8_K_XL"],["-c","524288"],["-np","2"],["-ctk","q4_0"],["-ctv","q4_0"],["-fa","on"],["--temp","1.0"],["--top-p","0.95"],["--top-k","20"]]}
+  ]},
+ {id:"m3",path:"unsloth/Qwen3-VL-4B-Instruct-GGUF",short:"Qwen3-VL-4B（GGUF · 识图）",fw:"llama.cpp",fwc:"llama",
+  versions:[
+   {tag:"1.11",note:"4090 · 待实测",status:"待实测",
+    managed:[["-m","…/Qwen3-VL-4B-Instruct-UD-Q8_K_XL.gguf"],["--port","11436(4090 推断)"]],gpu:"4090",ctx:"262K/slot ×2",kv:"q4_0 ~1.6G",vram:"≈7G/48G",
+    valid:[],warns:["无投机(4B 无 MTP/DFlash 草稿)","--jinja 走 GGUF 自带模板,不接自定义模板"],
+    params:[["-mm","…/mmproj-F32.gguf"],["-a","Qwen3-VL-4B-Instruct-UD-Q8_K_XL"],["-c","524288"],["-np","2"],["--jinja",""],["-ctk","q4_0"],["-ctv","q4_0"],["-fa","on"]]}
+  ]},
+ {id:"m4",path:"demo/DemoMoE-35B-FP8",short:"DemoMoE-35B-FP8",fw:"SGLang",fwc:"sglang",
+  versions:[
+   {tag:"2.3",note:"卡1 · mrr8 · 实测",active:true,bench:"~159 t/s · mrr8≈882",
+    managed:[["--model-path","/models/demo/DemoMoE-35B-FP8"],["--port","11437(卡1 推断)"]],gpu:"卡1",ctx:"262K",kv:"bf16 20KB/tok",vram:"~78G/96G",
+    valid:["262K 全上下文 258K prompt 拉满跑通"],warns:["文档原块 --tp 1(旧别名,当前版本写 --tp-size)"],
+    params:[["--served-model-name","DemoMoE-35B-FP8"],["--tp-size","1"],["--context-length","262144"],["--tool-call-parser","qwen3_coder"],["--reasoning-parser","qwen3"],["--max-running-requests","8"],["--enable-cache-report",""]]},
+   {tag:"1.7",note:"4090 · 0.94+fp8 拉满 · 实测",bench:"~156 t/s@196K",
+    managed:[["--model-path","同上"],["--port","11436(4090 推断)"]],gpu:"4090",ctx:"196K",kv:"fp8 ~46.2G",vram:"~47.7G/48G ⚠",
+    valid:[],warns:["KV 46.2G/48G 拉满档,无并发余量(实测上限)"],
+    params:[["--served-model-name","DemoMoE-35B-FP8-4090"],["--context-length","196608"],["--kv-cache-dtype","fp8_e4m3"],["--mem-fraction-static","0.94"],["--tool-call-parser","qwen3_coder"],["--reasoning-parser","qwen3"],["--max-running-requests","4"],["--cuda-graph-max-bs-prefill","2048"],["--enable-cache-report",""]]}
+  ]},
+ {id:"m5",path:"unsloth/Demo-27B-FP8",short:"Demo-27B-FP8",fw:"SGLang",fwc:"sglang",
+  versions:[
+   {tag:"2.1·live",note:"文档 2.1 · 在跑实例实测(= 11437, draft16)",active:true,run:11437,runExt:true,bench:"≈110-137 t/s 多并发",
+    managed:[["--model-path","/models/unsloth/Demo-27B-FP8"],["--port","11437(卡1 推断)"]],gpu:"卡1",ctx:"262K",kv:"fp8 ~32KB/tok",vram:"~46G/96G",
+    valid:["/server_info: ctx 262144 · DFLASH 开 · cache-report 开"],warns:["文档块 draft7,实测 16(block_size 8 × verify 窗口)","另有备选 --speculative-dflash-draft-window-size 4096(未入命令)"],
+    params:[["--served-model-name","Demo-27B-FP8"],["--context-length","262144"],["--kv-cache-dtype","fp8_e4m3"],["--reasoning-parser","qwen3"],["--tool-call-parser","qwen3_coder"],["--tp-size","1"],["--speculative-algorithm","DFLASH"],["--speculative-draft-model-path","…/Demo-27B-DFlash2"],["--speculative-num-draft-tokens","16"],["--max-running-requests","4"],["--enable-cache-report",""]]},
+   {tag:"2.1",note:"文档 2.1 命令块(draft7)",
+    managed:[["--model-path","同上"],["--port","11437(卡1 推断)"]],gpu:"卡1",ctx:"262K",kv:"fp8 ~32KB/tok",vram:"~46G/96G",
+    valid:[],warns:["draft=7 ≠ 草稿 block_size 16:仅 warning 但需与 block 对齐"],
+    params:[["--served-model-name","Demo-27B-FP8"],["--context-length","262144"],["--kv-cache-dtype","fp8_e4m3"],["--reasoning-parser","qwen3"],["--tool-call-parser","qwen3_coder"],["--tp-size","1"],["--speculative-algorithm","DFLASH"],["--speculative-draft-model-path","…/Demo-27B-DFlash2"],["--speculative-num-draft-tokens","7"],["--max-running-requests","4"],["--enable-cache-report",""]]},
+   {tag:"1.8",note:"4090 · DFLASH 65K · 实测",bench:"≈68-79 t/s",
+    managed:[["--model-path","同上"],["--port","11436(4090 推断)"]],gpu:"4090",ctx:"65K",kv:"fp8 ~7.3G",vram:"~46G/48G",
+    valid:[],warns:["qwen3.5 hybrid → mrr 封顶 1;拉满备选:无投机 fp8 KV @131072/0.94 ≈24 t/s","文档原块 --tp 1(旧别名,当前版本写 --tp-size)"],
+    params:[["--served-model-name","Demo-27B-FP8-4090"],["--tp-size","1"],["--context-length","65536"],["--kv-cache-dtype","fp8_e4m3"],["--mem-fraction-static","0.90"],["--reasoning-parser","qwen3"],["--tool-call-parser","qwen3_coder"],["--speculative-algorithm","DFLASH"],["--speculative-draft-model-path","…/Demo-27B-DFlash2"],["--speculative-num-draft-tokens","8"],["--max-running-requests","1"],["--enable-mixed-chunk",""],["--chunked-prefill-size","16384"],["--cuda-graph-max-bs-prefill","2048"],["--enable-cache-report",""]]}
+  ]},
+ {id:"m6",path:"demo/DemoMoE-35B-FP8",short:"DemoMoE-35B-FP8（vLLM）",fw:"vLLM",fwc:"vllm",
+  versions:[
+   {tag:"1.9",note:"4090 · vLLM",status:"vLLM 不可用",
+    dead:"vLLM 0.27.1 启动即崩:array.array 为 Py3.12+ 语法,venv 3.11(升 venv 或沿用 SGLang 1.7)",
+    managed:[["模型(位置参数)","/models/demo/DemoMoE-35B-FP8"],["--port","8000(vLLM 默认,文档未设)"]],gpu:"4090",ctx:"32K",kv:"(vLLM 默认)",vram:"≈29G+KV/48G",
+    valid:[],warns:[],
+    params:[["--served-model-name","DemoMoE-35B-FP8-4090"],["--tensor-parallel-size","1"],["--max-model-len","32768"],["--gpu-memory-utilization","0.88"],["--tool-call-parser","qwen3_xml"],["--reasoning-parser","qwen3"],["--trust-remote-code",""]]},
+   {tag:"2.7",note:"卡1 · vLLM",status:"vLLM 不可用",
+    dead:"同 1.9:vLLM 0.27.1 启动崩溃(换同权重 SGLang 版 = 2.3)",
+    managed:[["模型(位置参数)","同上"],["--port","8000(vLLM 默认,文档未设)"]],gpu:"卡1",ctx:"262K",kv:"(vLLM 默认)",vram:"≈29G+KV/96G",
+    valid:[],warns:[],
+    params:[["--served-model-name","DemoMoE-35B-FP8"],["--tensor-parallel-size","1"],["--max-model-len","262144"],["--enable-prefix-caching",""],["--enable-auto-tool-choice",""],["--tool-call-parser","qwen3_xml"],["--reasoning-parser","qwen3"],["--trust-remote-code",""]]}
+  ]},
+ {id:"m7",path:"Qwen/Demo-27B",short:"Demo-27B（原始 FP16）",fw:"SGLang",fwc:"sglang",
+  versions:[
+   {tag:"2.4",note:"卡1 · FP16 拉满 · DFLASH · 待实测",status:"待实测",
+    managed:[["--model-path","/models/Qwen/Demo-27B(BF16 ~54G)"],["--port","11437(卡1 推断)"]],gpu:"卡1",ctx:"262K",kv:"fp8 ~32KB/tok",vram:"54G 权重+KV / 96G",
+    valid:[],warns:["54G FP16 单卡拉满,mamba slot K≈20 → mrr4 零余量,OOM 风险;回退 = draft 16→8 或双卡 3.4","unsloth/Demo-27B 为同权重镜像(带自定义模板)"],
+    params:[["--served-model-name","Demo-27B-FP16"],["--trust-remote-code",""],["--context-length","262144"],["--mem-fraction-static","0.90"],["--kv-cache-dtype","fp8_e4m3"],["--reasoning-parser","qwen3"],["--tool-call-parser","qwen3_coder"],["--speculative-algorithm","DFLASH"],["--speculative-draft-model-path","…/Demo-27B-DFlash2"],["--speculative-num-draft-tokens","16"],["--max-running-requests","4"],["--enable-cache-report",""]]}
+  ]},
+ {id:"m8",path:"demo/Demo-27B-Uncensored-FP8",short:"Demo-Uncensored（block-FP8+MTP · 识图）",fw:"vLLM",fwc:"vllm",
+  versions:[
+   {tag:"2.6",note:"卡1 · MTP · 待实测",status:"待实测",
+    managed:[["模型(位置参数)","/models/demo/Demo-27B-Uncensored-FP8(~31G)"],["--port","8000(vLLM 默认,文档未设)"]],gpu:"卡1",ctx:"262K",kv:"fp8",vram:"≈31G+KV/96G",
+    valid:[],warns:["block-FP8:quantization_config 已在 config.json,勿再挂 --quantization fp8","MTP 需 vLLM 0.27.1 支持 method:mtp,启动验证"],
+    params:[["--served-model-name","Demo-27B-Uncensored"],["--trust-remote-code",""],["--max-model-len","262144"],["--kv-cache-dtype","fp8"],["--gpu-memory-utilization","0.90"],["--max-num-seqs","96"],["--speculative-config",'{"method":"mtp","num_speculative_tokens":3}'],["--reasoning-parser","qwen3"],["--enable-auto-tool-choice",""],["--tool-call-parser","qwen3_coder"]]}
+  ]},
+ {id:"m9",path:"Qwen/DemoMoE2-35B-FP8",short:"DemoMoE2-35B-FP8",fw:"SGLang",fwc:"sglang",
+  versions:[
+   {tag:"2.8",note:"卡1 · 262K · 待实测",status:"待实测",active:true,
+    managed:[["--model-path","/models/Qwen/DemoMoE2-35B-FP8(35G)"],["--port","11437(卡1 推断)"]],gpu:"卡1",ctx:"262K",kv:"fp8 ~32KB/tok",vram:"≈35G+KV/96G",
+    valid:[],warns:["权重带 MTP(mtp.safetensors),本 SGLang 版本未验证,先无投机启动"],
+    params:[["--served-model-name","DemoMoE2-35B-FP8"],["--tp-size","1"],["--context-length","262144"],["--kv-cache-dtype","fp8_e4m3"],["--reasoning-parser","qwen3"],["--tool-call-parser","qwen3_coder"],["--max-running-requests","8"],["--enable-cache-report",""]]},
+   {tag:"1.12",note:"4090 · 32K · 待实测",status:"待实测",
+    managed:[["--model-path","同上"],["--port","11436(4090 推断)"]],gpu:"4090",ctx:"32K",kv:"fp8 ~32KB/tok",vram:"≈35G+KV/48G",
+    valid:[],warns:["hybrid 可能 mrr 封顶 1,OOM → context 24K"],
+    params:[["--served-model-name","DemoMoE2-35B-FP8-4090"],["--context-length","32768"],["--kv-cache-dtype","fp8_e4m3"],["--reasoning-parser","qwen3"],["--tool-call-parser","qwen3_coder"],["--max-running-requests","4"],["--mem-fraction-static","0.90"],["--cuda-graph-max-bs-prefill","2048"],["--enable-cache-report",""]]}
+  ]},
+ {id:"m10",path:"unsloth/DemoFlash2-0731-GGUF",short:"DemoFlash2（双卡 · dspark · 1M）",fw:"llama.cpp",fwc:"llama",
+  versions:[
+   {tag:"3.1",note:"双卡(1,0) · 1M",status:"不可行",
+    dead:"权重缺陷:compress_ratios=[0] 长度 1 < block_count 43,llama.cpp deepseek4.cpp:57 抛 runtime_error(unsloth 导出缺陷,需重下)",
+    managed:[["-m","…/UD-IQ3_XXS/DemoFlash2-0731-UD-IQ3_XXS-00001-of-00004.gguf(4 片 98G)"],["--port","11437(双卡 推断)"]],gpu:"双卡(1,0)",ctx:"1M/slot ×2",kv:"q4_0 ≈8.1G",vram:"98G 权重 / 144G",
+    valid:[],warns:["f16 KV 最坏 ≈28.8G;q4_0 KV ≈8.1G(压缩缓存待验证)"],
+    params:[["-md","…/dspark-DemoFlash2-0731-Q8_0.gguf"],["--spec-type","draft-dspark"],["--spec-draft-n-max","5"],["-c","2097152"],["-np","2"],["--jinja",""],["-ctk","q4_0"],["-ctv","q4_0"],["-fa","on"],["--temp","1.0"],["--top-p","1.0"],["--min-p","0.01"]]}
+  ]},
+ {id:"m11",path:"demo/DemoMoE-35B",short:"DemoMoE-35B（原始 FP16 · 双卡）",fw:"SGLang",fwc:"sglang",
+  versions:[
+   {tag:"3.4",note:"双卡 tp2 · 262K · 待实测",status:"待实测",
+    managed:[["--model-path","/models/demo/DemoMoE-35B(BF16 16 片)"],["--port","11437(双卡 推断)"]],gpu:"双卡(1,0)",ctx:"262K",kv:"(auto)",vram:"≈70G/144G",
+    valid:[],warns:["4090 rank KV 紧(0.88→0.85 已贴线),262K 单请求贴边无并发;OOM 先降 max-model-len","YaRN 可外推 ~1M","同模型变体:vLLM tp2 / SGLang 单卡 131K → 文档 3.4"],
+    params:[["--served-model-name","DemoMoE-35B"],["--tp-size","2"],["--context-length","262144"],["--mem-fraction-static","0.88"],["--tool-call-parser","qwen3_coder"],["--reasoning-parser","qwen3"],["--enable-cache-report",""]]}
+  ]},
+ {id:"m12",path:"unsloth/DemoFlash-GGUF",short:"DemoFlash（双卡 · qwen4exp）",fw:"llama.cpp",fwc:"llama",
+  versions:[
+   {tag:"3.5",note:"双卡 · 3 片",status:"不可行",
+    dead:"qwen4exp 新架构:本地 llama.cpp build(b3c3b96a1)不识,需合 ggml-org/llama.cpp PR #27742 重建(或 Unsloth Desktop)",
+    managed:[["-m","…/UD-IQ4_XS/DemoFlash-UD-IQ4_XS-00001-of-00003.gguf(3 片 ~88G)"],["--port","11437(双卡 推断)"]],gpu:"双卡(1,0)",ctx:"262K/slot(可扩 1M)",kv:"q4_0(双卡池)",vram:"≈89G/144G",
+    valid:[],warns:["MTP 内置(4B/1 层),重建后 --spec-type draft-mtp 待验证","125B/6B-active MoE + 51B n-gram embedding,IQ4_XS ≈63G 权重"],
+    params:[["-mm","…/mmproj-F16.gguf"],["-a","DemoFlash-UD-IQ4_XS"],["-c","524288"],["-np","2"],["--jinja",""],["-ctk","q4_0"],["-ctv","q4_0"],["-fa","on"],["--temp","1.0"],["--top-p","0.95"]]}
+  ]}
+];
+
+let sel={m:"m5",v:"2.1·live"};   /* 默认展示在跑实例(11437,外部),直观看保护端口交互 */
+let dirty=false;
+let diffBase=null;
+let pickerOpen=false;
+
+const $=id=>document.getElementById(id);
+function curModel(){return MODELS.find(x=>x.id===sel.m);}
+function curVer(){return curModel().versions.find(x=>x.tag===sel.v);}
+function toast(html){var t=$("toast");t.innerHTML=html;t.classList.add("toast--show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("toast--show"),2800);}
+function toggleDrawer(){$("drawer").classList.toggle("drawer--open");}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");}
+
+/* 卡占用:该 GPU 上正在运行的版本 */
+function occupant(gpu,exclude){
+  for(const m of MODELS)for(const v of m.versions)
+    if(v.run&&v.gpu===gpu&&!(m.id===sel.m&&v.tag===exclude))return v;
+  return null;
+}
+function protectedOn(gpu){
+  for(const m of MODELS)for(const v of m.versions)
+    if(v.run&&v.runExt&&v.gpu===gpu)return v;
+  return null;
+}
+
+/* ============ 左栏:模型 · 版本树 ============ */
+function renderLeft(){
+  const box=$("models");let h="";
+  for(const m of MODELS){
+    h+='<div class="mGroup"><div class="mHead"><span class="fw fw--'+m.fwc+'">'+m.fw+'</span><span class="mp" title="'+m.path+'">'+m.path+'</span></div>';
+    for(const v of m.versions){
+      const isSel=m.id===sel.m&&v.tag===sel.v;
+      h+='<div class="ver'+(isSel?' ver--sel':'')+(v.run?' ver--run':'')+((v.failed||v.dead)?' ver--fail':'')+'" onclick="select(\''+m.id+'\',\''+v.tag+'\')">';
+      h+='<span class="vt">'+v.tag+'</span>';
+      h+='<span class="vn" title="'+v.note+'">'+v.note+'</span>';
+      if(v.bench)h+='<span class="bench">'+v.bench+'</span>';
+      if(v.run)h+='<span class="vr">● @'+v.run+(v.runExt?' · 外':'')+'</span>';
+      else if(v.failed)h+='<span class="vf">✗ 失败</span>';
+      else if(v.dead)h+='<span class="vf">'+(v.status==="vLLM 不可用"?"⚠ vLLM":"✗ 不可行")+'</span>';
+      else if(v.status==="待实测")h+='<span class="vpend">待实测</span>';
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+  box.innerHTML=h;
+}
+
+/* ============ 右栏:版本详情 ============ */
+function startBtn(m,v){
+  if(v.dead)return '<button class="btn btn--sm" disabled title="'+esc(v.dead)+'">不可用 · 修复前禁启动</button>';
+  if(v.failed)return '<button class="btn btn--sm btn--primary" onclick="toast(\'演示:重新尝试启动(真实实现:spawn + 盯日志,失败即存日志尾部)\')">重试启动</button>';
+  if(v.run){
+    if(v.run===11437)return '<button class="btn btn--sm" disabled title="保护端口 11437(DSH 在用服务):停止恒拒(含 force)">DSH 在用 · 恒拒停止</button>';
+    return '<button class="btn btn--sm btn--danger" onclick="stopVer()">停止 @'+v.run+'</button>';
+  }
+  if(m.fw==="llama.cpp"){
+    const prot=protectedOn(v.gpu);
+    if(prot)return '<button class="btn btn--sm" disabled title="卡上 '+prot.run+' 是 DSH 在用服务,恒拒停止">启动 · 卡被占用('+prot.run+')</button>';
+    const oc=occupant(v.gpu,v.tag);
+    if(oc)return '<button class="btn btn--sm btn--primary" onclick="takeover()">'+ (v.gpu==="4090"?"启动 · 接管 11436":"启动 · 接管 "+oc.run) +'</button>';
+    return '<button class="btn btn--sm btn--primary" onclick="startVer()">启动 ('+(v.gpu==="4090"?"11436":"端口自动")+')</button>';
+  }
+  const prot=protectedOn(v.gpu);
+  const oc=occupant(v.gpu,v.tag);
+  const why=prot?("卡1 被 DSH 在用服务占用"):(oc?("卡被 "+oc.tag+" 占用"):"");
+  return '<button class="btn btn--sm" disabled title="'+m.fw+' 托管启动 P2 支持;'+why+'">'+m.fw+' 启动 (P2)'+(why?" · "+(prot?"卡被占用":"接管"):"")+'</button>';
+}
+
+function descCell(m,f,val){
+  const fw=m.fw;const cat=catItem(fw,f);
+  if(!cat)return '<span class="pDesc">（自定义参数,不在官方目录）</span>';
+  const zh=zhFor(fw,cat.f)||cat.z||cat.s;                   /* 中文说明优先,悬停看英文原文 */
+  const rec=recFor(m,f);
+  let recHtml='';
+  if(rec!=null){
+    const rd=(cat.t==="bool")?(isOn(rec)?"开":"关"):rec;
+    if(rd!=="")recHtml=' <span class="recChip" style="display:inline-block;margin-left:4px">推荐 '+esc(rd)+'</span>';
+  }
+  const dfltText=(cat.d&&cat.d!=="")?(' 默认 '+cat.d):'';            /* 纯文本 → title 属性,不插 HTML */
+  const dfltHtml=(cat.d&&cat.d!=="")?(' <span class="dflt" style="opacity:.7">默认 '+esc(cat.d)+'</span>'):'';
+  return '<span class="pDesc" title="'+esc(cat.s+dfltText)+'">'+esc(zh)+recHtml+dfltHtml+'</span>';
+}
+function valCell(fw,f,val,editable,i,recDiff){
+  const cat=catItem(fw,f);
+  if(cat&&cat.t==="bool"){
+    const on=!(val==="false"||val==="off");
+    if(editable)return '<input type="checkbox"'+(on?' checked':'')+' onchange="onBool(this,'+i+')">';
+    return '<span class="txt">'+(on?'✓ 开':'— 关')+'</span>';
+  }
+  if(editable){
+    const dl=(cat&&cat.t==="enum")?(' list="catDl"'):'';
+    const ph=(cat&&cat.d&&cat.d!=="")?(cat.d.replace(/^\[/,"").replace(/\]$/,"").slice(0,24)):((cat&&cat.d==="")?"(无值)":"");
+    return '<input type="text" class="'+(recDiff?'rec-diff':'')+'" value="'+esc(val)+'" placeholder="'+esc(ph)+'"'+dl+' oninput="onEdit(this)" data-i="'+i+'">';
+  }
+  return '<span class="txt">'+(val!==""?esc(val):'✓')+'</span>';
+}
+
+function renderRight(){
+  const m=curModel(),v=curVer();
+  let h='<div class="vHead">';
+  h+='<span class="vTitle">'+m.short+' · '+v.tag+'</span>';
+  h+='<span class="meta">'+v.note+'</span>';
+  if(v.active)h+='<span class="pill" style="min-height:18px;line-height:16px;padding:0 6px;font-size:10px;">激活</span>';
+  if(v.run)h+='<span class="pill pill--ok" style="min-height:18px;line-height:16px;padding:0 6px;font-size:10px;">● 运行 @'+v.run+(v.runExt?' · 外部':'')+'</span>';
+  if(v.failed)h+='<span class="pill pill--fail" style="min-height:18px;line-height:16px;padding:0 6px;font-size:10px;">✗ 启动失败 · 退出码 1</span>';
+  h+='<span class="pill pill--warn dirtyPill" id="dirtyPill" style="min-height:18px;line-height:16px;padding:0 6px;font-size:10px;">● 未保存</span>';
+  h+='<div class="spacer"></div>';
+  h+=startBtn(m,v);
+  h+='<button class="btn btn--sm" id="btnSave" onclick="saveVer()"'+(dirty?'':' disabled')+'>保存</button>';
+  h+='<button class="btn btn--sm btn--primary" onclick="saveAsVer()">另存为版本</button>';
+  if(m.versions.length>1){
+    h+='<select class="sel" onchange="setDiff(this.value)">';
+    h+='<option value="">对比…</option>';
+    for(const o of m.versions)if(o.tag!==v.tag)h+='<option value="'+o.tag+'"'+(diffBase===o.tag?' selected':'')+'>对比 '+o.tag+'(基线)</option>';
+    h+='</select>';
+  }
+  h+='<button class="btn btn--sm btn--danger" onclick="toast(\'演示:删除版本(真实实现需二次确认)\')">删除</button>';
+  h+='</div>';
+
+  h+='<div class="metaStrip">';
+  h+='<span class="pill"><b style="font-size:11px">'+(v.gpu||"—")+'</b></span>';
+  h+='<span class="pill">上下文 <b>'+v.ctx+'</b></span>';
+  if(v.kv!=null)h+='<span class="pill">KV <b>'+v.kv+'</b></span>';
+  h+='<span class="pill">显存 <b>'+v.vram+'</b></span>';
+  h+='</div>';
+
+  if(diffBase){
+    const base=m.versions.find(x=>x.tag===diffBase);
+    h+='<div class="secLabel">参数对比 <span class="meta">'+v.tag+'(当前)vs '+base.tag+'(基线)· 只列差异相关行 · 官方顺序</span></div>';
+    h+='<div class="diffLegend"><span class="lg"><span class="sw sw--chg"></span>改动</span><span class="lg"><span class="sw sw--add"></span>新增</span><span class="lg"><span class="sw sw--del"></span>删除</span></div>';
+    h+='<div class="pTable"><div class="pHead pHead3"><span>参数</span><span>'+base.tag+'(基线)</span><span>'+v.tag+'(当前)</span></div>';
+    const curMap=new Map(sortedParams(m.fw,v.params)),baseMap=new Map(sortedParams(m.fw,base.params));
+    const order=[];
+    for(const [f] of baseMap)if(!order.includes(f))order.push(f);
+    for(const [f] of curMap)if(!order.includes(f))order.push(f);
+    for(const f of order){
+      const inB=baseMap.has(f),inC=curMap.has(f);
+      const bv=inB?baseMap.get(f):null,cv=inC?curMap.get(f):null;
+      const cat=catItem(m.fw,f);
+      const isBool=cat&&cat.t==="bool";
+      const showB=isBool?(inB?((bv!=="false"&&bv!=="off")?"✓":"—"):"—"):(inB?esc(bv):"—");
+      const showC=isBool?(inC?((cv!=="false"&&cv!=="off")?"✓":"—"):"—"):(inC?esc(cv):"—");
+      const same=(inB&&inC&&(isBool?((bv!=="false"&&bv!=="off")===((cv!=="false"&&cv!=="off"))):(bv===cv)));
+      if(same)continue;
+      const cls=(!inB)?'pRow--add':(!inC)?'pRow--del':'pRow--chg';
+      h+='<div class="pRow pRow3 '+cls+'"><span class="pFlag" title="'+esc(f)+'">'+f+'</span>';
+      h+='<span class="pBase"><span class="txt">'+showB+'</span></span>';
+      h+='<span class="pCur"><span class="txt">'+showC+'</span></span></div>';
+    }
+    h+='</div>';
+  }else{
+    h+='<div class="secLabel">启动参数('+v.params.length+')<span class="meta">按框架官方顺序 · 值直接编辑 · 说明=中文(悬停看英文原文) · 推荐=本模型激活版本实测值 · 偏离推荐标橙</span></div>';
+    h+='<div class="pTable"><div class="pHead"><span>参数</span><span>值</span><span>说明(中文 · 悬停=英文原文)</span></div>';
+    const rows=sortedParams(m.fw,v.params);
+    rows.forEach(p=>{
+      const i=v.params.findIndex(x=>x[0]===p[0]);
+      const rec=recFor(m,p[0]);
+      const recDiff=recMismatch(catItem(m.fw,p[0]),p[1],rec);
+      h+='<div class="pRow"><span class="pFlag" title="'+esc(p[0])+'">'+p[0]+'</span>';
+      h+='<span class="pVal">'+valCell(m.fw,p[0],p[1],true,i,recDiff)+'</span>';
+      h+=descCell(m,p[0],p[1]);
+      h+='<span class="pDel" title="删除参数" onclick="delParam(\''+esc(p[0]).replace(/'/g,"\\'")+'\')">×</span></div>';
+    });
+    h+='</div>';
+    if(pickerOpen){
+      h+='<div class="picker" id="picker"></div>';
+    }else{
+      h+='<div class="pAdd" onclick="openPicker()">＋ 从官方目录添加参数(按框架顺序插入,枚举带候选,带默认值)</div>';
+    }
+    if(v.managed&&v.managed.length){
+      h+='<div class="secLabel">托管参数(插件自动,只读)</div><div class="pTable">';
+      for(const [f,val] of v.managed)h+='<div class="pRow pRow--locked"><span class="pFlag">'+f+'</span><span class="pVal"><span class="txt">'+val+'</span></span><span class="pDesc">插件自动管理</span></div>';
+      h+='</div>';
+    }
+    h+='<div class="vFoot">';
+    for(const s of (v.valid||[]))h+='<div class="okLine">✓ '+s+'</div>';
+    for(const s of (v.warns||[]))h+='<div class="warnLine">⚠ '+s+'</div>';
+    if(v.dead)h+='<div class="errLine">✗ '+v.dead+'</div>';
+    h+='</div>';
+  }
+
+  /* 启动日志(运行中 / 失败 / 归档) */
+  if(v.failed){
+    h+=logBlock(m,v,true);
+  }else if((v.run&&!v.runExt)||v.log){
+    h+=logBlock(m,v,false);
+  }
+  $("right").innerHTML=h;
+  if(pickerOpen)renderPicker("");
+}
+
+function logBlock(m,v,fail){
+  const lines=fail?v.failedLog:v.log;
+  const port=v.run||(v.gpu==="4090"?"11436":"11437");
+  let h='<div class="logBox'+(fail?' logBox--fail':'')+'">';
+  h+='<div class="logHead"><span class="lt">'+(fail?'✗ 启动日志(进程已退出)':(v.run?'启动日志':'最近启动日志(归档)'))+ ' <span class="meta">…/servers/'+port+'.log · 尾部 '+lines.length+' 行</span></span><div class="spacer"></div>';
+  h+='<button class="btn btn--sm" onclick="copyLog('+(fail?1:0)+')">复制</button>';
+  h+='<button class="btn btn--sm btn--primary" onclick="sendLogToSession()">发送到会话</button>';
+  h+='</div>';
+  h+='<div class="logBody">';
+  for(const ln of lines){
+    if(/ERROR|exiting/i.test(ln))h+='<span class="err">'+esc(ln)+'</span>';
+    else if(/initializing|listening|200/.test(ln))h+='<span class="ln okl">'+esc(ln)+'</span>';
+    else h+='<span class="ln">'+esc(ln)+'</span>';
+  }
+  h+='</div></div>';
+  if(fail)h+='<div class="vFoot" style="margin-top:6px"><span class="warnLine">失败定位:日志已存盘 · 「发送到会话」把尾部贴进对话由 agent 定位参数 · 或直接改参数表后「重试启动」</span></div>';
+  return h;
+}
+
+function copyLog(failIdx){
+  const v=curVer();
+  const lines=(failIdx===1&&v.failed)?v.failedLog:v.log;
+  if(!lines){toast("无日志(外部服务未接管)");return;}
+  const txt=lines.join("\n");
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast("<b>已复制</b> 日志尾部 "+lines.length+" 行")).catch(()=>fallbackCopy(txt));
+  }else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();
+  try{document.execCommand("copy");toast("<b>已复制</b> 日志");}catch(e){toast("复制失败");}
+  document.body.removeChild(ta);
+}
+function sendLogToSession(){
+  toast("<b>已发送到会话</b> · 真实实现:POST /api/mm/log?port → remote 命令 /mm log <port> · 日志尾部出现在聊天流,agent 直接定位");
+}
+
+/* ============ picker:从官方目录添加参数 ============ */
+function openPicker(){pickerOpen=true;renderRight();}
+function renderPicker(q){
+  const m=curModel(),v=curVer();
+  const box=$("picker");if(!box)return;
+  const cat=CATS[m.fw]||[];
+  const have=new Set(v.params.map(p=>norm(p[0])));
+  const items=cat.filter(x=>!have.has(x.f)&&(!q||x.f.toLowerCase().includes(q.toLowerCase())||x.s.toLowerCase().includes(q.toLowerCase())||(zhFor(m.fw,x.f)||"").includes(q)));
+  let h='<input type="text" placeholder="搜索参数(中英文,如 speculative / 缓存 / top-k)… " value="'+esc(q)+'" oninput="renderPicker(this.value)" onclick="event.stopPropagation()">';
+  let lastG=null;
+  for(const x of items){
+    if(x.g!==lastG){h+='<div class="pkGroup">'+(GROUP_ZH[x.g]||x.g)+'</div>';lastG=x.g;}
+    const dflt=(x.d&&x.d!=="")?x.d:"(开/关)";
+    const rec=recFor(m,x.f);
+    let recHtml='';
+    if(rec!=null){
+      const rd=(x.t==="bool")?(rec===""?"开":"关"):rec;
+      if(rd!=="")recHtml='<span class="recChip">'+esc('推荐 '+rd)+'</span>';
+    }
+    const zh=zhFor(m.fw,x.f)||x.z||x.s;
+    h+='<div class="pkItem" onclick="pickParam(\''+esc(x.f).replace(/'/g,"\\'")+'\')"><span class="f">'+x.f+'</span><span class="d">'+esc(dflt)+'</span><span class="s" title="'+esc(x.s)+'">'+esc(zh)+'</span>'+recHtml+'</div>';
+  }
+  if(!items.length)h+='<div class="pkGroup">（无匹配）</div>';
+  box.innerHTML=h;
+}
+function pickParam(f){
+  const v=curVer();const m=curModel();
+  const cat=catItem(m.fw,f);
+  const rec=recFor(m,f);
+  let val="",note="";
+  const noDflt=!cat||["required","null","null(=model max)","null(=auto)","read from model"].includes(cat.d||"");
+  if(cat&&cat.t!=="bool"){
+    if(rec!=null&&rec!==""){val=rec;note="推荐值(激活版本)";}          /* 推荐值优先 */
+    else if(!noDflt){val=cat.d;note="框架默认";}                          /* 否则预填框架默认 */
+  }else if(cat&&cat.t==="bool"&&rec===""){val="";note="推荐开启";}
+  v.params.push([f,val]);
+  dirty=true;pickerOpen=false;renderRight();
+  toast("已添加 <b>"+f+"</b>"+(note?" · "+note+" "+val:""));
+}
+
+/* ============ 编辑 ============ */
+function select(m,v){sel={m,v};dirty=false;diffBase=null;pickerOpen=false;renderLeft();renderRight();}
+function onEdit(inp){
+  const v=curVer();
+  v.params[+inp.dataset.i][1]=inp.value;
+  if(!dirty){dirty=true;$("dirtyPill").classList.add("dirtyPill--on");const b=$("btnSave");if(b)b.disabled=false;}
+}
+function onBool(inp,i){
+  const v=curVer();
+  if(inp.checked){v.params[i][1]="";}
+  else{v.params[i][1]="false";}
+  if(!dirty){dirty=true;$("dirtyPill").classList.add("dirtyPill--on");const b=$("btnSave");if(b)b.disabled=false;}
+}
+function delParam(f){
+  const v=curVer();
+  if(!confirm("删除参数 "+f+"?"))return;
+  const i=v.params.findIndex(x=>norm(x[0])===norm(f));
+  v.params.splice(i,1);dirty=true;renderRight();
+  $("dirtyPill").classList.add("dirtyPill--on");
+}
+function saveVer(){dirty=false;pickerOpen=false;renderRight();toast("<b>已保存</b> "+curModel().short+" · "+curVer().tag+"(真实实现:POST /api/mm/profile/save,校验 error 拒绝)");}
+function saveAsVer(){
+  const m=curModel();
+  const n=Math.max(...m.versions.map(x=>parseInt(x.tag.slice(1))))+1;
+  const tag="v"+n;
+  m.versions.unshift({tag,note:"派生自 "+curVer().tag+(dirty?" · 含未保存改动":""),run:curVer().run?null:null,failed:false,
+    managed:curVer().managed?curVer().managed.map(x=>x.slice()):[],
+    gpu:curVer().gpu,ctx:curVer().ctx,kv:curVer().kv,vram:curVer().vram,
+    valid:curVer().valid?curVer().valid.slice():[],warns:curVer().warns?curVer().warns.slice():[],
+    params:curVer().params.map(x=>x.slice())});
+  sel={m:m.id,v:tag};dirty=false;diffBase=null;pickerOpen=false;renderLeft();renderRight();
+  toast("<b>已另存</b> "+tag+" · 参数版本数 "+m.versions.length);
+}
+function setDiff(v){diffBase=v||null;pickerOpen=false;renderRight();}
+
+/* ============ 启动 / 停止 / 接管(卡互斥) ============ */
+function startVer(){
+  const v=curVer();
+  v.run=v.gpu==="4090"?11436:11438;
+  v.failed=false;
+  renderLeft();renderRight();
+  toast("<b>启动中</b> @"+v.run+" · 盯 readyRe 锚点,失败即存日志");
+}
+function stopVer(){
+  const v=curVer();
+  if(v.runExt){toast("外部服务:停止需 force(fuser -k)——演示略");return;}
+  const port=v.run;
+  if(!confirm("停止 @"+port+"?(kill 托管 pid)"))return;
+  v.run=null;renderLeft();renderRight();toast("已停止 @"+port);
+}
+function takeover(){
+  const v=curVer();
+  const oc=occupant(v.gpu,v.tag);
+  if(!oc){startVer();return;}
+  if(!confirm("卡互斥:先停止在跑的 "+curModelOf(oc).short+" "+oc.tag+"(@"+oc.run+"),再在 "+oc.run+" 启动 "+v.tag+"?"))return;
+  const port=oc.run;oc.run=null;v.run=port;
+  renderLeft();renderRight();
+  toast("<b>接管完成</b> @"+port+":"+oc.tag+" 已停 → "+v.tag+" 已启动");
+}
+function curModelOf(v){for(const m of MODELS)if(m.versions.includes(v))return m;return {short:""};}
+
+renderLeft();renderRight();
+</script>
+</body>
+</html>

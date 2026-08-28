@@ -1,0 +1,6 @@
+# dsh-model-manager bundle patch
+# Declared via "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }; loading
+# this package as a profile layer registers the plugin row automatically.
+- insert:
+    - id: model-manager
+      name: 'dsh-model-manager'
