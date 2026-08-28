@@ -72,9 +72,9 @@ const EXTRA = `
 .mm-benchEmpty{padding:6px 14px;font-size:11.5px;}
 .mm-btn--danger-solid{background:var(--danger);border-color:var(--danger);color:#fff;}
 /* ===== 追加:侧栏收起 / 日志自动滚动 / 顶部测速 pill ===== */
-.mm-body--collapsed{grid-template-columns:36px 1fr;}
+.mm-body--collapsed{grid-template-columns:0 1fr;}
+.mm-body--collapsed .mm-paneL{padding:0;border-right:0;background:none;}
 .mm-kickerRow{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
-.mm-treeExpand{writing-mode:vertical-rl;letter-spacing:2px;padding:10px 3px;min-width:24px;}
 .mm-autoScroll{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;}
 .mm-autoScroll input{margin:0;cursor:pointer;}
 `;

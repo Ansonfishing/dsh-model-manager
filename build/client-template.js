@@ -932,7 +932,7 @@ window.__ModuleLoader__.load({
         e("div", { className: "mm-body" + (treeCollapsed ? " mm-body--collapsed" : "") },
           e("div", { className: "mm-paneL" },
             treeCollapsed
-              ? e("button", { className: "mm-btn mm-treeExpand", "data-act": "tree-expand", title: "展开「模型 · 参数版本」列表" }, "≡ 版本")
+              ? null
               : (
                 e("div", { className: "mm-paneLInner" },
                   e("div", { className: "mm-kickerRow" },
@@ -944,9 +944,12 @@ window.__ModuleLoader__.load({
           ),
           e("div", { className: "mm-paneR" },
             !v || !g
-              ? e("div", { className: "mm-loading" }, "在左侧选择一个参数版本…")
+              ? e("div", { className: "mm-loading" },
+                treeCollapsed ? e("button", { className: "mm-btn mm-btn--sm", "data-act": "tree-expand", title: "展开「模型 · 参数版本」列表" }, "≡ 版本") : null,
+                "在左侧选择一个参数版本…")
               : e("div", { key: v.id + ":" + tick },
                 e("div", { className: "mm-vHead" },
+                  treeCollapsed ? e("button", { className: "mm-btn mm-btn--sm", "data-act": "tree-expand", title: "展开「模型 · 参数版本」列表" }, "≡ 版本") : null,
                   e("span", { className: "mm-vTitle" }, v.name),
                   e("span", { className: "mm-meta" }, shortPath(v.modelPath || "")),
                   v.active ? e("span", { className: "mm-pill mm-mini" }, "激活") : null,
