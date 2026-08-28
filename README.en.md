@@ -2,50 +2,46 @@
 
 **Languages: [English](README.en.md) | [中文](README.md)**
 
-Local inference server management panel — a plugin for DSH (DeepSeek Harness).
+A control panel for your local LLM inference servers — a plugin for DSH (DeepSeek Harness).
 
 ![Panel screenshot](screenshots/model-manager-panel.png)
 
-## Features
+## Why
 
-- **Service registry** — register local inference servers (port, framework, model, GPU) with health checks and one-click stop.
-- **Parameter profiles** — named parameter versions per model × framework × GPU for llama.cpp / SGLang / vLLM, rendered in each framework's official parameter order with recommended-value comparison and diff highlighting.
-- **GPU detection** — auto-enumerates GPUs via `libcuda` (python3 ctypes), falling back to `nvidia-smi`; card index = the `CUDA_VISIBLE_DEVICES` value (CUDA device order).
-- **VRAM validation** — estimates KV memory from `-c` / `-np` when saving a profile and warns when the target card cannot hold it.
-- **One-click benchmark** — sends a fixed prompt (non-streaming, 256 tokens) to a running server and records tok/s.
-- **Safety rails** — never uses `pkill`; port 11437 (DSH's own inference port) requires double confirmation before stopping.
+Run a couple of local inference servers (llama.cpp / SGLang / vLLM) and the parameter knowledge scatters across terminal history and notes: which `-c` / `-np` does this model want? Does the VRAM actually fit? Which framework boots on this card?
 
-## Install
+With this plugin, the answers live in one panel:
 
-In your DSH web profile directory (the directory with the profile's `package.json`, default `~/.dsh/profiles/web`):
+- Before: digging through shell history, hand-calculating KV memory, learning about over-budget configs from an OOM.
+- After: a service registry that shows who runs on which card in real time, parameter profiles validated for VRAM before you save, one-click tok/s benchmarks.
+
+## Quick start
+
+**Prerequisites**: DSH (with web) + pnpm; GPU detection needs python3 (falls back to `nvidia-smi` when missing).
 
 ```bash
-cd ~/.dsh/profiles/web
+cd ~/.dsh/profiles/web                      # your DSH web profile directory
 pnpm add github:Ansonfishing/dsh-model-manager
 ```
 
-Then make sure `dsh.profile.bundles` in `package.json` includes `"dsh-model-manager"`, and restart `dsh`. A "Model Manager" tab then appears in the conversation view.
+Then add `"dsh-model-manager"` to the `dsh.profile.bundles` array in `package.json` and restart `dsh`. A "Model Manager" tab appears in the conversation view — done.
 
-### Local development
+## Features
 
-Clone this repo and use a `link:` dependency in your profile:
+- **Service registry** — register local inference servers (port, framework, model, GPU) with live health checks and one-click stop.
+- **Parameter profiles** — named parameter versions per "model × framework × GPU" for llama.cpp / SGLang / vLLM, rendered in each framework's official parameter order, with recommended-value comparison and diff highlighting.
+- **GPU detection** — auto-enumerates cards (`libcuda` primary, `nvidia-smi` fallback); card index = the `CUDA_VISIBLE_DEVICES` value.
+- **VRAM validation** — estimates KV memory from `-c` / `-np` when you save a profile and warns immediately if the target card can't hold it.
+- **One-click benchmark** — sends a fixed prompt (non-streaming, 256 tokens) to a running server and records tok/s.
+- **Safety rails** — never uses `pkill`; stopping port 11437 (DSH's own inference port) requires double confirmation.
 
-```bash
-cd ~/.dsh/profiles/web
-pnpm add link:../path/to/dsh-model-manager
-```
+## No DSH? Take a look anyway
 
-Client-only changes need a browser refresh; Node-side changes (`index.js` / `lib/*.js`) need a `dsh` restart.
+Clone this repo and open `test/harness/index.html` in a browser — a zero-dependency render harness that shows the full panel with mock data; `?chrome=0` hides the harness bar.
 
 ## Local GPU table (optional)
 
-The repo ships **no** hardcoded GPU mappings. If you want card names and memory capacity shown in the panel, create:
-
-```
-~/.dsh/model-manager/builtin-gpus.local.json
-```
-
-Example:
+The repo ships no hardcoded GPU mappings. To show card names and memory capacity, create `~/.dsh/model-manager/builtin-gpus.local.json`:
 
 ```json
 {
@@ -54,16 +50,28 @@ Example:
 }
 ```
 
-Without this file the panel falls back to "GPU 0 / GPU 1" and VRAM validation is skipped.
+Without the file the panel falls back to "GPU 0 / GPU 1" and skips VRAM validation.
 
 ## Development
 
 ```bash
-npm test                        # node --test test/*.test.mjs
-node build/build-client.cjs     # rebuild lib/client.js from mockup-v3.html
+npm test                          # node --test test/*.test.mjs
+node build/build-client.cjs       # rebuild lib/client.js from mockup-v3.html
 ```
 
-See `test/harness/index.html` for a standalone browser render harness (mock data only).
+Local development: after cloning, use `pnpm add link:../path/to/dsh-model-manager` in your profile. Client-only changes need a browser refresh; Node-side changes (`index.js` / `lib/*.js`) need a `dsh` restart.
+
+## Architecture at a glance
+
+| Layer | File | Responsibility |
+|---|---|---|
+| Entry | `index.js` | registers 13 tools + 16 same-origin routes |
+| Lifecycle | `lib/lifecycle.js` | registry CRUD, health probes, managed start/stop |
+| Safety | `lib/safety.js` | stop policy (fuser/kill), protected ports |
+| Validation | `lib/validate.js` | launchCommand parsing + rule engine |
+| GPU | `lib/gpu.js` | detection + local GPU table loading |
+| Adapters | `lib/adapters/*.js` | llama / sglang / vllm command assembly |
+| Client | `lib/client.js` | single-file React component (built from the mockup) |
 
 ## License
 
