@@ -1,5 +1,7 @@
 # dsh-model-manager
 
+**语言 / Language: [中文](README.md) | [English](README.en.md)**
+
 本地推理模型管理面板——DSH（DeepSeek Harness）插件。
 
 ![面板截图](screenshots/model-manager-panel.png)
@@ -15,14 +17,25 @@
 
 ## 安装
 
+在 DSH 的 web profile 目录（profile 的 `package.json` 所在目录，默认 `~/.dsh/profiles/web`）执行：
+
 ```bash
-# 在 DSH web profile 中安装
-pnpm add dsh-model-manager
-# 或本地链接
-dsh web --patch ./cordis.patch.yml --port 3090
+cd ~/.dsh/profiles/web
+pnpm add github:Ansonfishing/dsh-model-manager
 ```
 
-安装后在会话视图 tab 列出现「模型管理」tab（order 41）。
+然后确认 `package.json` 的 `dsh.profile.bundles` 数组里包含 `"dsh-model-manager"`，重启 `dsh` 即可。安装后在会话视图 tab 列出现「模型管理」tab。
+
+### 本地开发
+
+clone 本仓库后在 profile 里用 link 依赖：
+
+```bash
+cd ~/.dsh/profiles/web
+pnpm add link:../path/to/dsh-model-manager
+```
+
+客户端改动只需浏览器 F5；Node 侧（`index.js` / `lib/*.js`）改动需重启 `dsh`。
 
 ## 本地 GPU 表（可选）
 
@@ -36,8 +49,8 @@ dsh web --patch ./cordis.patch.yml --port 3090
 
 ```json
 {
-  "0": { "name": "4090", "memGb": 48 },
-  "1": { "name": "PRO 6000", "memGb": 96 }
+  "0": { "name": "RTX 4090", "memGb": 24 },
+  "1": { "name": "RTX 6000 Ada", "memGb": 48 }
 }
 ```
 
@@ -56,7 +69,7 @@ node build/build-client.cjs   # 从 mockup-v3.html 重新构建 lib/client.js
 
 | 层 | 文件 | 职责 |
 |---|---|---|
-| 入口 | `index.js` | 注册 9 工具 + 12 路由 + 1 命令 |
+| 入口 | `index.js` | 注册 13 个工具 + 16 个同源路由 |
 | 生命周期 | `lib/lifecycle.js` | 注册表 CRUD、健康探测、托管启动/停止 |
 | 安全 | `lib/safety.js` | 停止策略（fuser/kill）、保护端口 |
 | 校验 | `lib/validate.js` | launchCommand 解析 + 规则引擎 |
