@@ -61,6 +61,15 @@ node build/build-client.cjs       # 从 mockup-v3.html 重新构建 lib/client.j
 
 本地开发:clone 后在 profile 里用 `pnpm add link:../path/to/dsh-model-manager`。客户端改动浏览器 F5 即可;Node 侧(`index.js` / `lib/*.js`)改动需重启 `dsh`。
 
+## 常见问题
+
+- **面板显示 "GPU 0 / GPU 1" 而不是卡名?** 缺 `~/.dsh/model-manager/builtin-gpus.local.json` 且 `nvidia-smi` 未探测到卡。显存校验会自动跳过(不会误报,不影响其它功能)。放一个本地 GPU 表即可显示真实卡名与容量,见上文「本地 GPU 表」。
+- **GPU 检测一直失败?** 首选 `libcuda`/python3,缺失时回退 `nvidia-smi`;两者都没有时面板顶部会给出 `lastError` 原文,按它排查即可。
+- **点「停止」没反应 / 需要再点一次?** 停止外部(非本插件托管)服务需要显式 `force` + 两次点击二次确认;这是红线,不是 bug。托管服务(本插件 spawn 的)一次即可。11437 停止时额外提示「将中断当前会话」。
+- **托管启动报「port 已被注册表占用」?** 该端口已有登记条目。先停掉原服务,或换一个端口;死托管记录(记录 pid 已亡)会在启动时自动清理。
+- **SGLang / vLLM 启动报 flashinfer 版本不一致?** 插件对这两个框架已默认跳过 cubin 版本检查(与手动启动命令一致);若仍失败,请对齐 `flashinfer-python` 与 `flashinfer-cubin` 的 pip 版本。
+- **端口 11436 / 11437 是什么?** 只是双卡场景下的默认端口建议(卡0=11436、卡1=11437),不是硬编码保留,可以随意改。
+
 ## 架构简述
 
 | 层 | 文件 | 职责 |
