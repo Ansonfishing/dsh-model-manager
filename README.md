@@ -33,7 +33,7 @@ pnpm add github:Ansonfishing/dsh-model-manager
 - **GPU 检测**——自动枚举显卡(`libcuda` 主源,`nvidia-smi` 回退);卡编号 = `CUDA_VISIBLE_DEVICES` 值。
 - **显存校验**——保存 Profile 时按 `-c` / `-np` 估算 KV 占用,超出目标卡容量立刻 warning。
 - **一键测速**——对已运行服务发固定 prompt(非流式 256 token),记录 tok/s。
-- **安全红线**——绝不 `pkill`;11437(DSH 自身推理端口)停止前需二次确认。
+- **安全红线**——绝不 `pkill`;停止外部服务需显式 force + 面板两次点击二次确认;11437(DSH 自身推理端口)停止时额外提示「将中断当前会话」。
 
 ## 不用装 DSH,先看看面板?
 

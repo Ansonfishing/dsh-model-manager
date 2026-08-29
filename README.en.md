@@ -33,7 +33,7 @@ Then add `"dsh-model-manager"` to the `dsh.profile.bundles` array in `package.js
 - **GPU detection** — auto-enumerates cards (`libcuda` primary, `nvidia-smi` fallback); card index = the `CUDA_VISIBLE_DEVICES` value.
 - **VRAM validation** — estimates KV memory from `-c` / `-np` when you save a profile and warns immediately if the target card can't hold it.
 - **One-click benchmark** — sends a fixed prompt (non-streaming, 256 tokens) to a running server and records tok/s.
-- **Safety rails** — never uses `pkill`; stopping port 11437 (DSH's own inference port) requires double confirmation.
+- **Safety rails** — never uses `pkill`; stopping an external service requires explicit force plus a two-click confirmation in the panel; stopping port 11437 (DSH's own inference port) additionally warns that it will interrupt the current session.
 
 ## No DSH? Take a look anyway
 
