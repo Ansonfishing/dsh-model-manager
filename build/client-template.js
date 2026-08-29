@@ -34,7 +34,7 @@ window.__ModuleLoader__.load({
     const REFRESH_MS = 30000;
     const CLIENT_HEADER = "x-dsh-model-manager-client";
     const CLIENT_VALUE = "v1";
-    const PROTECTED_PORTS = [11437];
+    const PROTECTED_PORTS = [];
     /* 内置回退表(未检测到显卡时用):来自服务端 builtin-gpus.local.json → /api/mm/gpus 的 builtin 字段,
        用户本机约定不入库;仓库默认无内置表,卡名显示 "GPU n"。 */
 
@@ -139,21 +139,34 @@ window.__ModuleLoader__.load({
 
     /* ---------- 数据派生 ---------- */
     function buildGroups(profiles) {
-      const map = new Map();
+      // 顶层 = checkpoint(=modelPath,版本1 要选的模型);其下 framework 子组(版本2 参数版本树)
+      const cpMap = new Map();
       for (const p of profiles) {
-        const key = p.framework + "::" + p.modelPath;
-        if (!map.has(key)) map.set(key, {
-          id: key, fw: p.framework, fwLabel: FRAMEWORKS[p.framework] || p.framework,
-          path: p.modelPath, short: p.model || String(p.modelPath).split("/").pop(), versions: [],
-        });
-        map.get(key).versions.push(p);
+        let cg = cpMap.get(p.modelPath);
+        if (!cg) {
+          cg = { id: p.modelPath, path: p.modelPath, short: p.model || String(p.modelPath).split("/").pop(), fwGroups: [] };
+          cpMap.set(p.modelPath, cg);
+        }
       }
-      const list = [...map.values()];
+      const sgMap = new Map();
+      for (const p of profiles) {
+        const key = p.modelPath + "::" + p.framework;
+        let sg = sgMap.get(key);
+        if (!sg) {
+          sg = { id: key, fw: p.framework, fwLabel: FRAMEWORKS[p.framework] || p.framework, path: p.modelPath, versions: [] };
+          sgMap.set(key, sg);
+          cpMap.get(p.modelPath).fwGroups.push(sg);
+        }
+        sg.versions.push(p);
+      }
+      const list = [...cpMap.values()];
       // 组内版本排序:卡序(卡0 → 卡1 → 双卡)→ 名序(版本号已废弃,不再按编号)
       const gkey = (p) => (p.gpu === 0 ? 0 : p.gpu === 1 ? 1 : 2);
-      for (const g of list) {
-        g.versions.sort((a, b) => (gkey(a) - gkey(b)) || String(a.name).localeCompare(String(b.name)));
-        g.activeV = g.versions.find((v) => v.active) || g.versions[0] || null;
+      for (const cg of list) {
+        for (const sg of cg.fwGroups) {
+          sg.versions.sort((a, b) => (gkey(a) - gkey(b)) || String(a.name).localeCompare(String(b.name)));
+          sg.activeV = sg.versions.find((v) => v.active) || sg.versions[0] || null;
+        }
       }
       return list;
     }
@@ -171,14 +184,16 @@ window.__ModuleLoader__.load({
       for (const s of running) {
         if (s.managed) continue;
         let best = null, bestScore = 0;
-        for (const g of groups) {
-          const act = g.activeV; if (!act) continue;
-          if (s.framework !== g.fw) continue;
-          if (s.gpu == null || s.gpu === undefined || s.gpu !== act.gpu) continue;
-          const sm = String(s.model || "").toLowerCase(), am = String(act.model || "").toLowerCase();
-          let score = 0;
-          if (sm && am) { if (sm === am) score = 2; else if (am.indexOf(sm) !== -1 || sm.indexOf(am) !== -1) score = 1; }
-          if (score > bestScore) { bestScore = score; best = act; }
+        for (const cg of groups) {
+          for (const sg of cg.fwGroups) {
+            const act = sg.activeV; if (!act) continue;
+            if (s.framework !== sg.fw) continue;
+            if (s.gpu == null || s.gpu === undefined || s.gpu !== act.gpu) continue;
+            const sm = String(s.model || "").toLowerCase(), am = String(act.model || "").toLowerCase();
+            let score = 0;
+            if (sm && am) { if (sm === am) score = 2; else if (am.indexOf(sm) !== -1 || sm.indexOf(am) !== -1) score = 1; }
+            if (score > bestScore) { bestScore = score; best = act; }
+          }
         }
         if (best) out.set(best.id, { port: s.port, ext: true, server: s });
       }
@@ -221,9 +236,9 @@ window.__ModuleLoader__.load({
         const occ = servers.find((s) => s.status === "running" && (s.gpu == null || s.gpu === c.index));
         if (!occ) f.push({ tone: "ok", where: c.shortName, msg: "空闲 · " + defaultPort(c.index) + " 可启动托管版本" });
       });
-      const total = groups.reduce((n, g) => n + g.versions.length, 0);
+      const total = groups.reduce((n, cg) => n + cg.fwGroups.reduce((m, sg) => m + sg.versions.length, 0), 0);
       let ok = 0;
-      for (const g of groups) for (const p of g.versions) {
+      for (const cg of groups) for (const sg of cg.fwGroups) for (const p of sg.versions) {
         const issues = validateLocal(p);
         if (issues.length) { for (const it of issues) f.push({ tone: it.tone, where: modelOf(p.name) + " · " + gpuName(p.gpu), msg: it.msg }); }
         else ok++;
@@ -233,18 +248,39 @@ window.__ModuleLoader__.load({
     }
 
     /* ---------- HTML 片段(字符串;事件走 data-act 委托) ---------- */
-    function treeHtml(groups, selId, runMap, q) {
+    // 顶层 checkpoint 默认选中的框架(内存默认=每 checkpoint 第一个子组;实际选中态由 selFw[cg.id] 驱动)
+    function selectedFw(cg, selFw) {
+      return (selFw && selFw[cg.id] != null) ? selFw[cg.id] : (cg.fwGroups.length ? cg.fwGroups[0].fw : null);
+    }
+    function treeHtml(groups, selId, runMap, q, selFw) {
       if (!groups.length) return '<div class="mm-loading">暂无参数版本<br>保存的 profile 会出现在这里</div>';
       const qL = (q || "").toLowerCase();
       let h = "";
       let shown = 0;
-      for (const g of groups) {
-        const gHit = !qL || g.fwLabel.toLowerCase().indexOf(qL) !== -1 || String(g.path).toLowerCase().indexOf(qL) !== -1 || g.short.toLowerCase().indexOf(qL) !== -1;
-        const vs = g.versions.filter((v) => !qL || gHit || v.name.toLowerCase().indexOf(qL) !== -1 || String(v.modelPath || "").toLowerCase().indexOf(qL) !== -1);
-        if (!vs.length) continue;
-        shown += vs.length;
-        h += '<div class="mm-mGroup"><div class="mm-mHead"><span class="mm-fw mm-fw--' + g.fw + '">' + esc(g.fwLabel) + '</span><span class="mm-mp" title="' + esc(g.path) + '">' + esc(shortPath(g.path)) + "</span></div>";
-        for (const v of vs) {
+      for (const cg of groups) {
+        // 顶层命中:路径/模型名,或有任一字组版本匹配(命中则整组可见,下拉+版本行都渲染)
+        let cpHit = !qL || String(cg.path).toLowerCase().indexOf(qL) !== -1 || String(cg.short).toLowerCase().indexOf(qL) !== -1;
+        let sg = cg.fwGroups.find((x) => x.fw === selectedFw(cg, selFw)) || null;
+        let rows = qL ? [] : (sg ? sg.versions : []);
+        if (qL) {
+          // 有搜索:跨子组聚合命中行(按版本名/模型路径),并标顶层命中
+          for (const x of cg.fwGroups) for (const v of x.versions) {
+            if (v.name.toLowerCase().indexOf(qL) !== -1 || String(v.modelPath || "").toLowerCase().indexOf(qL) !== -1) { rows.push(v); cpHit = true; }
+          }
+        }
+        if (!cpHit && !rows.length) continue;
+        shown += rows.length;
+        // 顶层标题(仅模型路径;框架标签下移到下拉)
+        h += '<div class="mm-mGroup"><div class="mm-mHead"><span class="mm-mp" title="' + esc(cg.path) + '">' + esc(shortPath(cg.path)) + "</span></div>";
+        // 框架下拉:选项 = 该 checkpoint 已存在的 framework 集合(不去重),选中态走 onChange(data-act=sel-fw)
+        if (cg.fwGroups.length) {
+          const curFw = selectedFw(cg, selFw);
+          h += '<div class="mm-fwRow"><select class="mm-sel" data-act="sel-fw" data-cp="' + esc(cg.id) + '" title="选择本模型的推理框架">' +
+            cg.fwGroups.map((x) => '<option value="' + esc(x.fw) + '"' + (x.fw === curFw ? " selected" : "") + ">" + esc(x.fwLabel) + "</option>").join("") +
+            "</select></div>";
+        }
+        // 版本行(版本2:同 checkpoint+框架 的不同参数/解码方案;gpuName+modelOf+run/dead 徽章)
+        for (const v of rows) {
           const isSel = v.id === selId;
           const run = runMap.get(v.id);
           const dead = KNOWN_DEAD[v.name];
@@ -252,7 +288,7 @@ window.__ModuleLoader__.load({
           h += '<span class="mm-vt">' + esc(gpuName(v.gpu)) + (v.active ? " ▶" : "") + "</span>";
           h += '<span class="mm-vn" title="' + esc(v.name) + '">' + esc(modelOf(v.name)) + "</span>";
           if (run) h += '<span class="mm-vr">● @' + run.port + (run.ext ? " · 外" : "") + "</span>";
-          else if (dead) h += '<span class="mm-vf">' + (g.fw === "vllm" ? "⚠ vLLM" : "✗ 不可行") + "</span>";
+          else if (dead) h += '<span class="mm-vf">' + (v.framework === "vllm" ? "⚠ vLLM" : "✗ 不可行") + "</span>";
           h += "</div>";
         }
         h += "</div>";
@@ -491,6 +527,7 @@ window.__ModuleLoader__.load({
       const [treeQ, setTreeQ] = React.useState("");
       const [selId, setSelId] = React.useState(null);
       const [diffBase, setDiffBase] = React.useState(null);
+      const [selFw, setSelFw] = React.useState({}); // 顶层 checkpoint→框架选择(内存,不持久化;默认每 checkpoint 第一个子组)
       const [pickerOpen, setPickerOpen] = React.useState(false);
       const [pickerQ, setPickerQ] = React.useState("");
       const [logState, setLogState] = React.useState(null);
@@ -501,6 +538,7 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = React.useState("");
       const [tick, setTick] = React.useState(0);
       const [showRegister, setShowRegister] = React.useState(false);
+      const [showFwCfg, setShowFwCfg] = React.useState(false); // 框架路径:平时不用,默认收起
       const [armedStop, setArmedStop] = React.useState(null); // 已 arm 的停止端口(null=正常态);二次确认护栏
       const rootRef = React.useRef(null);
       const draftRef = React.useRef([]);
@@ -606,7 +644,13 @@ window.__ModuleLoader__.load({
       }, [logState, autoScroll]);
 
       function curVer() { return profilesRef.current.find((p) => p.id === selId) || null; }
-      function curGroup() { const v = curVer(); return v ? groups.find((g) => g.id === v.framework + "::" + v.modelPath) || null : null; }
+      // 定位选中版本所在的 framework 子组(按 modelPath 找顶层 checkpoint,再按 framework 找子组)
+      function groupForVersion(v) {
+        if (!v) return null;
+        const cg = groups.find((x) => x.id === v.modelPath); if (!cg) return null;
+        return cg.fwGroups.find((x) => x.fw === v.framework) || null;
+      }
+      function curGroup() { const v = curVer(); return groupForVersion(v); }
 
       function markDirty() {
         if (dirtyRef.current) return;
@@ -817,6 +861,7 @@ window.__ModuleLoader__.load({
         else if (act === "fw-probe") doFwProbe(t.dataset.fw);
         else if (act === "fw-save") doFwSave(t.dataset.fw);
         else if (act === "register-toggle") setShowRegister((s) => !s);
+        else if (act === "fw-cfg-toggle") setShowFwCfg((s) => !s);
       }
       function onRootInput(ev) {
         const el = ev.target;
@@ -825,10 +870,11 @@ window.__ModuleLoader__.load({
       function onRootChange(ev) {
         const el = ev.target;
         if (el && el.dataset && el.dataset.bool !== undefined) editBool(+el.dataset.bool, el.checked);
+        else if (el && el.dataset && el.dataset.act === "sel-fw") setSelFw((s) => ({ ...s, [el.dataset.cp]: ev.target.value }));
       }
 
       const v = profiles.find((p) => p.id === selId) || null;
-      const g = v ? groups.find((x) => x.id === v.framework + "::" + v.modelPath) || null : null;
+      const g = v ? groupForVersion(v) || null : null;
       const run = v ? runMap.get(v.id) : undefined;
       const dead = v ? KNOWN_DEAD[modelOf(v.name)] : undefined;
       const draft = draftRef.current;
@@ -911,10 +957,11 @@ window.__ModuleLoader__.load({
           servers.length ? servers.map(serverChip) : e("span", { className: "mm-meta" }, "暂无已登记服务"),
           e("div", { className: "mm-spacer" }),
           e("button", { className: "mm-btn mm-btn--sm", "data-act": "register-toggle" }, showRegister ? "收起" : "+ 登记服务"),
+          e("button", { className: "mm-btn mm-btn--sm", "data-act": "fw-cfg-toggle" }, showFwCfg ? "收起框架路径" : "+ 框架路径"),
         ),
         showRegister ? e(RegisterForm, { busy: busy === "register", onSubmit: doRegister, onCancel: () => setShowRegister(false), gpus: gpuCardList() }) : null,
-        /* 框架路径配置(llama.cpp=可执行文件;SGLang/vLLM=venv 内 python) */
-        e("div", { className: "mm-extStrip" },
+        /* 框架路径配置(llama.cpp=可执行文件;SGLang/vLLM=venv 内 python)——平时用不到,默认收起,服务注册表行「+ 框架路径」展开 */
+        showFwCfg ? e("div", { className: "mm-extStrip" },
           e("span", { className: "mm-kicker" }, "框架路径"),
           frameworks ? Object.keys(FRAMEWORKS).map((fw) => {
             const cur = (frameworks.frameworks[fw] || {}).exe || "";
@@ -927,7 +974,7 @@ window.__ModuleLoader__.load({
               e("span", { className: "mm-fwProbe " + (pv ? (pv.ok ? "mm-fOk" : pv.ok === false ? "mm-fBad" : "mm-meta") : "mm-meta") }, pv ? (pv.ok ? "✓ " : "✗ ") + pv.line : ""),
             );
           }) : (fwReady ? e("span", { className: "mm-meta" }, "加载框架配置…") : e("span", { className: "mm-meta" }, "框架配置端点未生效——你手动重启一次 dsh 后可用")),
-        ),
+        ) : null,
         /* 主体:左树 · 右详情 */
         e("div", { className: "mm-body" + (treeCollapsed ? " mm-body--collapsed" : "") },
           e("div", { className: "mm-paneL" },
@@ -940,7 +987,7 @@ window.__ModuleLoader__.load({
                     e("div", { className: "mm-spacer" }),
                     e("button", { className: "mm-btn mm-btn--sm", "data-act": "tree-collapse", title: "收起侧栏" }, "⟨")),
                   e("input", { className: "mm-search", type: "text", placeholder: "搜索(模型 / 路径 / 框架)…", value: treeQ, onChange: (ev) => setTreeQ(ev.target.value) }),
-                  e("div", { dangerouslySetInnerHTML: { __html: treeHtml(groups, selId, runMap, treeQ) } }))),
+                  e("div", { dangerouslySetInnerHTML: { __html: treeHtml(groups, selId, runMap, treeQ, selFw) } }))),
           ),
           e("div", { className: "mm-paneR" },
             !v || !g

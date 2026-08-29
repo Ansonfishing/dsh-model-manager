@@ -74,6 +74,9 @@ const EXTRA = `
 /* ===== 追加:侧栏收起 / 日志自动滚动 / 顶部测速 pill ===== */
 .mm-root .mm-body.mm-body--collapsed{grid-template-columns:0 1fr;}
 .mm-root .mm-body--collapsed .mm-paneL{padding:0;border-right:0;background:none;}
+/* ===== 追加:三层树——顶层 checkpoint 下拉(框架选择) ===== */
+.mm-root .mm-fwRow{margin:2px 0 6px;}
+.mm-root .mm-fwRow .mm-sel{width:100%;}
 .mm-kickerRow{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
 .mm-autoScroll{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;}
 .mm-autoScroll input{margin:0;cursor:pointer;}

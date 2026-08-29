@@ -1,6 +1,6 @@
 // dsh-model-manager 插件入口(node 半)
 // P0:9 个 agent tools(服务启停/注册 + 参数 profile 版本管理)+ 2 条只读 webServer 路由。
-// 红线:绝不 pkill、绝不停保护端口 11437、绝不自动重启 dsh。
+// 红线:绝不 pkill、绝不自动重启 dsh。
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
@@ -233,7 +233,7 @@ export function apply(ctx) {
       description:
         "停止一个已登记的推理服务。外部(非本插件启动)服务必须显式传 force=true " +
         "(执行 fuser -k <port>/tcp);托管服务直接 kill 自己 spawn 的 PID。未注册端口拒绝盲杀。" +
-        "11437 为 DSH 自用服务,停止它会中断当前会话——调用前须得到用户明确确认。本插件绝不使用 pkill。",
+        "本插件绝不使用 pkill。",
       parameters: {
         type: "object",
         properties: {

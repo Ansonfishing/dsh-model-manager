@@ -110,7 +110,7 @@ test("apply(fake ctx): 9 工具 + 2 路由 + 安全纪律 + P0 验收", async (t
   // 注意:绝不通过真实路由对已注册 11437 调 stop(测试进程与真实服务共享网络命名空间,
   // 会 fuser -k 杀掉真实服务!)——行为断言全部走 stopPlan 纯函数,路由层只验「未注册拒盲杀」。
   const { stopPlan, assertNoPkill, DEFAULT_PROTECTED_PORTS } = await import("../lib/safety.js");
-  assert.ok(DEFAULT_PROTECTED_PORTS.includes(11437), "11437 仍保留为 DSH 在用 UI 标记");
+  assert.deepEqual(DEFAULT_PROTECTED_PORTS, [], "无特殊保护端口:11437 不再特殊对待");
   await assert.rejects(() => by("mm_server_stop").execute({ port: 11437, force: true }), /未注册|unregistered/);
   // stopPlan 纯函数:11437 与任意外部端口行为一致
   assert.deepEqual(stopPlan(11437, { port: 11437, managed: false }, { force: true }), ["fuser", "-k", "11437/tcp"]);

@@ -1,11 +1,11 @@
 // safety: 杀进程红线不变量——只 fuser -k <port>/tcp 或 kill 自身 spawn 的 PID,
-// 绝不 pkill;未注册拒盲杀;外部需 force。11437 保护已放开(仅留 UI 标记)。
+// 绝不 pkill;未注册拒盲杀;外部需 force。无特殊保护端口(11437 保护已移除)。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_PROTECTED_PORTS, stopPlan, assertNoPkill, realPidAlive } from "../lib/safety.js";
 
-test("DEFAULT_PROTECTED_PORTS 含 11437", () => {
-  assert.ok(DEFAULT_PROTECTED_PORTS.includes(11437));
+test("DEFAULT_PROTECTED_PORTS 为空(11437 不再特殊对待)", () => {
+  assert.deepEqual(DEFAULT_PROTECTED_PORTS, []);
 });
 
 test("托管服务 + pid 存活 → kill -TERM <pid>", () => {
