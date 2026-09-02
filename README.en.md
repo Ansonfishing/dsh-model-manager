@@ -29,10 +29,10 @@ Then add `"dsh-model-manager"` to the `dsh.profile.bundles` array in `package.js
 ## Features
 
 - **Service registry** — register local inference servers (port, framework, model, GPU) with live health checks and one-click stop.
-- **Parameter profiles** — named parameter versions per "model × framework × GPU" for llama.cpp / SGLang / vLLM, rendered in each framework's official parameter order, with recommended-value comparison and diff highlighting.
+- **Parameter profiles** — named parameter versions per "model × framework × GPU" for llama.cpp / SGLang / vLLM. Rows follow a fixed 9-group order (model → context → KV → speculative decoding → sampling → performance → parallelism → server → misc); different quantizations of the same model × framework share one union row set with aligned rows — flags unset in the current version show as grey "other quant: value" rows, so cross-quant differences pop out. Recommended values resolve through a 3-tier provenance chain (same-quant live value → sibling quant → official best practice), labelled per cell; nothing is guessed.
 - **GPU detection** — auto-enumerates cards (`libcuda` primary, `nvidia-smi` fallback); card index = the `CUDA_VISIBLE_DEVICES` value.
 - **VRAM validation** — estimates KV memory from `-c` / `-np` when you save a profile and warns immediately if the target card can't hold it.
-- **One-click benchmark** — sends a fixed prompt (non-streaming, 256 tokens) to a running server and records tok/s.
+- **One-click benchmark** — sends a fixed prompt (non-streaming, 256 tokens) to a running server and records tok/s; a full-context hot benchmark additionally verifies the usable context is at least the target, then runs streaming warmup + measurement (TTFB / prefill / decode).
 - **Safety rails** — never uses `pkill`; stopping an external service requires explicit force plus a two-click confirmation in the panel; stopping port 11437 (DSH's own inference port) additionally warns that it will interrupt the current session.
 
 ## No DSH? Take a look anyway
@@ -65,7 +65,7 @@ Local development: after cloning, use `pnpm add link:../path/to/dsh-model-manage
 
 | Layer | File | Responsibility |
 |---|---|---|
-| Entry | `index.js` | registers 13 tools + 16 same-origin routes |
+| Entry | `index.js` | registers 14 tools + 17 same-origin routes |
 | Lifecycle | `lib/lifecycle.js` | registry CRUD, health probes, managed start/stop |
 | Safety | `lib/safety.js` | stop policy (fuser/kill), protected ports |
 | Validation | `lib/validate.js` | launchCommand parsing + rule engine |

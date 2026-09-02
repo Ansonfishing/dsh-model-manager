@@ -30,7 +30,7 @@
     builtin: {}
   };
   const SERVERS = [
-    { port: 11437, framework: "llama", model: "Demo-27B-FP8", gpu: 1, note: null, managed: true, pid: 4242,
+    { port: 11437, framework: "llama", model: "Demo-27B-FP8", gpu: 1, note: "managed:Demo-27B-FP8 · llama · 卡1", managed: true, pid: 4242,
       registeredAt: "2026-01-02T08:00:00.000Z", status: "running", health: "ok" },
     { port: 11500, framework: "vllm", model: "DemoMoE-35B", gpu: 0, note: null, managed: false, pid: null,
       registeredAt: "2026-01-03T08:00:00.000Z", status: "running", health: "ok" },
@@ -53,7 +53,11 @@
     { id: "p4", name: "DemoMoE-35B · sglang · 卡0", framework: "sglang", model: "DemoMoE-35B",
       modelPath: "/models/demo/DemoMoE-35B", gpu: 0, active: false,
       launchCommand: "--model-path /models/demo/DemoMoE-35B --context-length 262144 --mem-fraction-static 0.85 --enable-cache-report",
-      contextWindow: 262144, kvBytesPerToken: 4096 }
+      contextWindow: 262144, kvBytesPerToken: 4096 },
+    { id: "p5", name: "Demo-27B-NVFP4 · llama · 卡1", framework: "llama", model: "Demo-27B-NVFP4",
+      modelPath: "/models/demo/Demo-27B-NVFP4", gpu: 1, active: false,
+      launchCommand: "-np 2 -c 262144 --fit on",
+      contextWindow: 262144, kvBytesPerToken: 5120 }
   ];
   const BENCH = [
     { profile: "Demo-27B-FP8 · llama · 卡1", port: 11437, tps: 84.2, tokens: 256, maxTokens: 256, ms: 3039, at: "2026-01-05T09:12:00.000Z" },

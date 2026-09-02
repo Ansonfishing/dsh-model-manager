@@ -71,12 +71,58 @@ const EXTRA = `
 .mm-benchTps b{font-size:15px;font-weight:700;color:var(--accent);}
 .mm-benchEmpty{padding:6px 14px;font-size:11.5px;}
 .mm-root .mm-btn.mm-btn--danger-solid{background:var(--danger);border-color:var(--danger);color:#fff;}
+/* ===== 追加:模型优先三层树(模型 → 量化 → 框架/版本,mockup-v5 定稿)+ 卡 tab + 测速对比 ===== */
+.mm-root .mm-cardTabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.mm-root .mm-ctab{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:3px 12px;font-size:12px;cursor:pointer;user-select:none;}
+.mm-root .mm-ctab:hover{background:var(--layer2);}
+.mm-root .mm-ctab--active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+.mm-root .mm-ctab--active:hover{background:var(--accent);}
+.mm-root .mm-mrow{cursor:pointer;padding:5px 6px;border-radius:6px;display:flex;align-items:center;gap:5px;font-weight:600;min-width:0;}
+.mm-root .mm-mrow:hover{background:var(--layer2);}
+.mm-root .mm-mrow--sel{background:#eaf3ff;}
+.mm-root .mm-arrow{color:var(--faint);font-size:11px;width:12px;flex:none;transition:transform .12s;}
+.mm-root .mm-mrow.open > .mm-arrow,.mm-root .mm-qrow.open > .mm-arrow{transform:rotate(90deg);}
+.mm-root .mm-msub{margin-left:14px;display:none;}
+.mm-root .mm-mrow.open + .mm-msub{display:block;}
+.mm-root .mm-mrow .mm-mp{font-family:var(--code);font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
+.mm-root .mm-qrow{cursor:pointer;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:5px;color:var(--muted);margin:1px 0;min-width:0;}
+.mm-root .mm-qrow:hover{background:var(--layer2);}
+.mm-root .mm-qtag{font-weight:600;color:var(--text);}
+.mm-root .mm-qcard{color:var(--faint);font-weight:400;font-size:11.5px;white-space:nowrap;}
+.mm-root .mm-qstat{margin-left:auto;font-size:11px;white-space:nowrap;}
+.mm-root .mm-qstat--run{color:var(--success);font-weight:600;}
+.mm-root .mm-qstat--bench{color:var(--accent);font-weight:600;}
+.mm-root .mm-qstat--no{color:var(--faint);}
+.mm-root .mm-vsub2{margin:1px 0 6px 16px;display:none;border-left:2px solid var(--line);padding-left:6px;}
+.mm-root .mm-qrow.open + .mm-vsub2{display:block;}
+.mm-root .mm-vrow{cursor:pointer;display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:5px;color:var(--muted);min-width:0;}
+.mm-root .mm-vrow:hover{background:var(--layer2);}
+.mm-root .mm-vrow--sel{background:#eaf3ff;}
+.mm-root .mm-vrow--run .mm-qcard{color:var(--success);}
+.mm-root .mm-vstat{margin-left:auto;font-size:11px;white-space:nowrap;}
+.mm-root .mm-vstat--run{color:var(--success);font-weight:600;}
+.mm-root .mm-vstat--bench{color:var(--accent);font-weight:600;}
+.mm-root .mm-vstat--fail{color:var(--danger);}
+.mm-root .mm-vstat--no{color:var(--faint);}
+.mm-root .mm-mright{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none;}
+.mm-root .mm-mcard{font-size:10px;padding:0 6px;border-radius:999px;background:var(--layer);border:1px solid var(--line);color:var(--muted);font-weight:600;white-space:nowrap;}
+.mm-root .mm-mcount{color:var(--faint);font-size:11px;font-weight:400;white-space:nowrap;}
+.mm-root .mm-vSub{color:var(--faint);font-size:12px;font-weight:400;white-space:nowrap;}
+.mm-root .mm-vActions{display:flex;gap:8px;margin:10px 0 2px;flex-wrap:wrap;align-items:center;}
+.mm-root .mm-cmp{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden;}
+.mm-root .mm-cmpHead{background:var(--layer);border-bottom:1px solid var(--line);padding:7px 12px;font-weight:600;font-size:12.5px;display:flex;align-items:center;gap:10px;}
+.mm-root .mm-cmpHead .mm-meta{font-weight:400;}
+.mm-root .mm-cmpBody{padding:4px 12px 8px;}
+.mm-root .mm-brow{display:grid;grid-template-columns:110px minmax(0,1fr) 90px 70px 120px;gap:10px;padding:6px 2px;border-top:1px dashed var(--line);align-items:baseline;font-size:12px;}
+.mm-root .mm-brow:first-child{border-top:none;}
+.mm-root .mm-brow--head{color:var(--faint);font-weight:600;font-size:11.5px;}
+.mm-root .mm-brow--me{background:#f0f6ff;}
+.mm-root .mm-bnum{color:var(--text);white-space:nowrap;}
+.mm-root .mm-bnum b{font-size:15px;font-weight:700;color:var(--accent);}
+.mm-root .mm-bmeta{color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 /* ===== 追加:侧栏收起 / 日志自动滚动 / 顶部测速 pill ===== */
 .mm-root .mm-body.mm-body--collapsed{grid-template-columns:0 1fr;}
 .mm-root .mm-body--collapsed .mm-paneL{padding:0;border-right:0;background:none;}
-/* ===== 追加:三层树——顶层 checkpoint 下拉(框架选择) ===== */
-.mm-root .mm-fwRow{margin:2px 0 6px;}
-.mm-root .mm-fwRow .mm-sel{width:100%;}
 .mm-kickerRow{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
 .mm-autoScroll{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;}
 .mm-autoScroll input{margin:0;cursor:pointer;}

@@ -125,8 +125,6 @@ window.__ModuleLoader__.load({
 .mm-root .mm-mGroup{margin-bottom:12px;}
 .mm-root .mm-mHead{padding:5px 8px;display:flex;gap:6px;align-items:center;min-width:0;}
 .mm-root .mm-mHead .mm-mp{font-family:var(--code);font-size:10.5px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
-.mm-root .mm-fwRow{margin:2px 0 6px;}
-.mm-root .mm-fwRow .mm-sel{width:100%;}
 .mm-root .mm-ver{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent;min-width:0;}
 .mm-root .mm-ver:hover{background:var(--hover);}
 .mm-root .mm-ver--sel{background:var(--bg);border-color:var(--line);box-shadow:0 1px 2px rgba(31,35,40,.06);}
@@ -260,13 +258,105 @@ window.__ModuleLoader__.load({
 .mm-benchTps{font-size:12px;color:var(--text);white-space:nowrap;}
 .mm-benchTps b{font-size:15px;font-weight:700;color:var(--accent);}
 .mm-benchEmpty{padding:6px 14px;font-size:11.5px;}
-.mm-btn--danger-solid{background:var(--danger);border-color:var(--danger);color:#fff;}
+.mm-root .mm-btn.mm-btn--danger-solid{background:var(--danger);border-color:var(--danger);color:#fff;}
+/* ===== 追加:模型优先三层树(模型 → 量化 → 框架/版本,mockup-v5 定稿)+ 卡 tab + 测速对比 ===== */
+.mm-root .mm-cardTabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.mm-root .mm-ctab{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:3px 12px;font-size:12px;cursor:pointer;user-select:none;}
+.mm-root .mm-ctab:hover{background:var(--layer2);}
+.mm-root .mm-ctab--active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+.mm-root .mm-ctab--active:hover{background:var(--accent);}
+.mm-root .mm-mrow{cursor:pointer;padding:5px 6px;border-radius:6px;display:flex;align-items:center;gap:5px;font-weight:600;min-width:0;}
+.mm-root .mm-mrow:hover{background:var(--layer2);}
+.mm-root .mm-mrow--sel{background:#eaf3ff;}
+.mm-root .mm-arrow{color:var(--faint);font-size:11px;width:12px;flex:none;transition:transform .12s;}
+.mm-root .mm-mrow.open > .mm-arrow,.mm-root .mm-qrow.open > .mm-arrow{transform:rotate(90deg);}
+.mm-root .mm-msub{margin-left:14px;display:none;}
+.mm-root .mm-mrow.open + .mm-msub{display:block;}
+.mm-root .mm-mrow .mm-mp{font-family:var(--code);font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
+.mm-root .mm-qrow{cursor:pointer;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:5px;color:var(--muted);margin:1px 0;min-width:0;}
+.mm-root .mm-qrow:hover{background:var(--layer2);}
+.mm-root .mm-qtag{font-weight:600;color:var(--text);}
+.mm-root .mm-qcard{color:var(--faint);font-weight:400;font-size:11.5px;white-space:nowrap;}
+.mm-root .mm-qstat{margin-left:auto;font-size:11px;white-space:nowrap;}
+.mm-root .mm-qstat--run{color:var(--success);font-weight:600;}
+.mm-root .mm-qstat--bench{color:var(--accent);font-weight:600;}
+.mm-root .mm-qstat--no{color:var(--faint);}
+.mm-root .mm-vsub2{margin:1px 0 6px 16px;display:none;border-left:2px solid var(--line);padding-left:6px;}
+.mm-root .mm-qrow.open + .mm-vsub2{display:block;}
+.mm-root .mm-vrow{cursor:pointer;display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:5px;color:var(--muted);min-width:0;}
+.mm-root .mm-vrow:hover{background:var(--layer2);}
+.mm-root .mm-vrow--sel{background:#eaf3ff;}
+.mm-root .mm-vrow--run .mm-qcard{color:var(--success);}
+.mm-root .mm-vstat{margin-left:auto;font-size:11px;white-space:nowrap;}
+.mm-root .mm-vstat--run{color:var(--success);font-weight:600;}
+.mm-root .mm-vstat--bench{color:var(--accent);font-weight:600;}
+.mm-root .mm-vstat--fail{color:var(--danger);}
+.mm-root .mm-vstat--no{color:var(--faint);}
+.mm-root .mm-mright{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none;}
+.mm-root .mm-mcard{font-size:10px;padding:0 6px;border-radius:999px;background:var(--layer);border:1px solid var(--line);color:var(--muted);font-weight:600;white-space:nowrap;}
+.mm-root .mm-mcount{color:var(--faint);font-size:11px;font-weight:400;white-space:nowrap;}
+.mm-root .mm-vSub{color:var(--faint);font-size:12px;font-weight:400;white-space:nowrap;}
+.mm-root .mm-vActions{display:flex;gap:8px;margin:10px 0 2px;flex-wrap:wrap;align-items:center;}
+.mm-root .mm-cmp{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden;}
+.mm-root .mm-cmpHead{background:var(--layer);border-bottom:1px solid var(--line);padding:7px 12px;font-weight:600;font-size:12.5px;display:flex;align-items:center;gap:10px;}
+.mm-root .mm-cmpHead .mm-meta{font-weight:400;}
+.mm-root .mm-cmpBody{padding:4px 12px 8px;}
+.mm-root .mm-brow{display:grid;grid-template-columns:110px minmax(0,1fr) 90px 70px 120px;gap:10px;padding:6px 2px;border-top:1px dashed var(--line);align-items:baseline;font-size:12px;}
+.mm-root .mm-brow:first-child{border-top:none;}
+.mm-root .mm-brow--head{color:var(--faint);font-weight:600;font-size:11.5px;}
+.mm-root .mm-brow--me{background:#f0f6ff;}
+.mm-root .mm-bnum{color:var(--text);white-space:nowrap;}
+.mm-root .mm-bnum b{font-size:15px;font-weight:700;color:var(--accent);}
+.mm-root .mm-bmeta{color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 /* ===== 追加:侧栏收起 / 日志自动滚动 / 顶部测速 pill ===== */
-.mm-body--collapsed{grid-template-columns:36px 1fr;}
+.mm-root .mm-body.mm-body--collapsed{grid-template-columns:0 1fr;}
+.mm-root .mm-body--collapsed .mm-paneL{padding:0;border-right:0;background:none;}
 .mm-kickerRow{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
-.mm-treeExpand{writing-mode:vertical-rl;letter-spacing:2px;padding:10px 3px;min-width:24px;}
 .mm-autoScroll{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;}
 .mm-autoScroll input{margin:0;cursor:pointer;}
+/* ===== v7 §15:模型名首位两行制 / splitter / 参数 9 组 + 未设行 / ⋯菜单 / 折叠块 ===== */
+.mm-root .mm-mcol{display:flex;flex-direction:column;flex:1;min-width:0;gap:2px;}
+.mm-root .mm-mline1{display:flex;align-items:baseline;gap:7px;min-width:0;}
+.mm-root .mm-mline2{display:flex;align-items:center;gap:6px;min-width:0;}
+.mm-root .mm-mname{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.mm-root .mm-mrun{font-size:10px;font-weight:700;color:var(--success);white-space:nowrap;flex:none;}
+.mm-root .mm-mrow{align-items:flex-start;padding:6px 6px 5px;}
+.mm-root .mm-mrow > .mm-arrow{margin-top:2px;}
+.mm-root .mm-qtag{font-size:11.5px;}
+.mm-root .mm-vtag{font-size:10.5px;font-weight:600;color:var(--text);background:var(--layer2);border:1px solid var(--line);border-radius:5px;padding:0 5px;line-height:15px;white-space:nowrap;flex:none;max-width:130px;overflow:hidden;text-overflow:ellipsis;}
+.mm-root .mm-splitter{cursor:col-resize;background:transparent;position:relative;flex:none;}
+.mm-root .mm-splitter::after{content:"";position:absolute;inset:0 -3px;z-index:5;}
+.mm-root .mm-splitter:hover,.mm-root .mm-splitter:active{background:color-mix(in srgb,var(--accent) 35%,transparent);}
+.mm-root .mm-body--collapsed .mm-splitter{display:none;}
+.mm-root .mm-pGroup{display:flex;align-items:center;gap:8px;padding:5px 10px 4px;background:color-mix(in srgb,var(--layer) 65%,transparent);border-bottom:1px solid var(--line);font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--muted);}
+.mm-root .mm-pRow--unset{opacity:.62;background:repeating-linear-gradient(135deg,transparent,transparent 9px,color-mix(in srgb,var(--layer) 45%,transparent) 9px,color-mix(in srgb,var(--layer) 45%,transparent) 10px);}
+.mm-root .mm-pRow--unset:hover{opacity:.92;}
+.mm-root .mm-pRow--unset .mm-pDel{color:var(--accent);}
+.mm-root .mm-unsetTag{font-size:11px;color:var(--faint);padding:3px 7px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;}
+.mm-root .mm-sibHint{font-size:10px;color:var(--accent);font-family:var(--code);opacity:.85;}
+.mm-root .mm-moreWrap{position:relative;}
+.mm-root .mm-moreMenu{position:absolute;right:0;top:calc(100% + 4px);z-index:40;min-width:180px;background:var(--bg);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 28px rgba(31,35,40,.22);padding:4px;display:flex;flex-direction:column;gap:2px;}
+.mm-root .mm-moreMenu button{border:0;background:none;text-align:left;padding:6px 10px;border-radius:6px;font-size:12px;color:var(--text);cursor:pointer;white-space:nowrap;}
+.mm-root .mm-moreMenu button:hover{background:var(--hover);}
+.mm-root .mm-moreMenu button:disabled{opacity:.5;cursor:default;}
+.mm-root .mm-menuSel{width:100%;margin:2px 0;}
+.mm-root .mm-fold{border:1px solid var(--line);border-radius:8px;margin-top:10px;overflow:hidden;background:var(--bg);}
+.mm-root .mm-foldSum{cursor:pointer;padding:7px 12px;font-size:11.5px;font-weight:600;color:var(--muted);background:var(--layer);user-select:none;display:flex;align-items:center;gap:8px;list-style:none;}
+.mm-root .mm-foldSum::before{content:"▸";color:var(--faint);font-size:10px;}
+.mm-root .mm-fold[open] > .mm-foldSum::before{content:"▾";}
+.mm-root summary::-webkit-details-marker{display:none;}
+.mm-root details > summary{list-style:none;}
+.mm-root .mm-foldFlag{font-weight:400;font-size:11px;}
+.mm-root .mm-foldFlag--ok{color:var(--success);}
+.mm-root .mm-foldFlag--warn{color:var(--warn);}
+.mm-root .mm-foldFlag--bad{color:var(--danger);font-weight:600;}
+.mm-root .mm-tailFold > .mm-pTable{border:0;border-radius:0;border-bottom:1px solid var(--line);}
+.mm-root .mm-vFoot{padding:6px 10px 8px;}
+.mm-root .mm-logBox{margin:0 10px 10px;}
+.mm-root .mm-benchBar{display:flex;align-items:center;gap:8px;padding:7px 12px 3px;}
+.mm-root .mm-cmp{margin-top:10px;}
+.mm-root .mm-cmpHead{cursor:pointer;list-style:none;}
+.mm-root .mm-svcToggle{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none;color:var(--muted);font-size:12px;min-width:0;flex-wrap:nowrap;max-width:52ch;overflow:hidden;}
 `;
 
     /* ================= 官方参数目录 + 中文说明(自 mockup-v3 注入:
@@ -556,25 +646,87 @@ function zhFor(fw,f){const o=ZH_OVERRIDES[fw];return (o&&o[f])||ZH[f]||null;}
 const GROUP_ZH={model:"模型",server:"服务",context:"上下文",sampling:"采样",spec:"投机解码",speculative:"投机解码",kv:"KV 缓存",perf:"性能",cache:"缓存",parallelism:"并行",mamba:"Mamba",memory:"显存",parser:"解析/模板",misc:"其他"};
 function norm(f){return ALIAS[f]||f;}
 function catItem(fw,f){const c=CATS[fw];if(!c)return null;return c.find(x=>x.f===norm(f))||null;}
-function sortedParams(fw,params){
-  return params.map((p,i)=>({p,i,ci:catItem(fw,p[0])?CATS[fw].findIndex(x=>x.f===norm(p[0])):1e9}))
-    .sort((a,b)=>(a.ci-b.ci)||(a.i-b.i)).map(x=>x.p);
+/* v7 §15 排序 A:9 组固定序(模型→上下文→KV→投机→采样→性能→并行→服务→其他)。
+   cache/memory/parser/mamba 并入「服务」;组内保持官方目录序;目录外参数进「其他」。
+   同模型+同框架不同量化:行集取并集(见 paramsTableHtml),共有参数行位对齐。 */
+const G9_ORDER = ["model", "context", "kv", "spec", "sampling", "perf", "parallelism", "server", "misc"];
+const G9_ZH = { model: "模型", context: "上下文", kv: "KV 缓存", spec: "投机解码", sampling: "采样", perf: "性能", parallelism: "并行", server: "服务", misc: "其他" };
+function g9Of(fw, f) {
+  const cat = catItem(fw, f);
+  let g = cat ? cat.g : null;
+  if (g === "speculative") g = "spec";
+  if (g === "cache" || g === "memory" || g === "parser" || g === "mamba") g = "server";
+  const i = G9_ORDER.indexOf(g);
+  return i === -1 ? "misc" : g;
 }
-/* 推荐值 = 该模型「激活版本」(实测/审计过的组合)里的参数值 */
-function recFor(m,f){const vs=m.versions||[];const v=vs.find(x=>x.active)||vs[0];if(!v)return null;for(const p of (v.params||[]))if(norm(p[0])===norm(f))return p[1];return null;}
+function sortedParams(fw, params) {
+  return params.map((p, i) => ({ p, i, gi: G9_ORDER.indexOf(g9Of(fw, p[0])), ci: catItem(fw, p[0]) ? CATS[fw].findIndex((x) => x.f === norm(p[0])) : 1e9 }))
+    .sort((a, b) => (a.gi - b.gi) || (a.ci - b.ci) || (a.i - b.i)).map((x) => x.p);
+}
 function isOn(val){return !(val==="false"||val==="off");}
 function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="bool")return isOn(cur)!==isOn(rec);return cur!==rec;}
 
-
-
-    /* 推荐值 recFor 覆盖:真实 store 版本读 profile.launchCommand(非演示 params) */
-    function recFor(m, f) {
-      const vs = m.versions || [];
-      const v = vs.find((x) => x.active) || vs[0];
-      if (!v) return null;
-      for (const p of parseLaunchCommand(v.launchCommand || "")) if (norm(p[0]) === norm(f)) return p[1];
+    /* v7 推荐值三级溯源链(用户:「推荐参数要合理,主要参考官方或者最佳社区实践,参考硬件一样的,不要随便想」):
+       L1 同量化:该组「激活版本」launchCommand 实跑值 → 来源「同量化」
+       L2 同模型:同框架兄弟量化实跑值(显存不同标「同模型·显存差异」,值不自动换算) → 来源「同模型」
+       L3 官方:内置最佳实践表 bpFor(仅收录有据条目) → 来源「官方」
+       三级皆无 → null(留空不猜)。返回 { rec, src }。 */
+    function cardMemGb(gpu) {
+      if (isDual(gpu)) { const a = detectedCard(0), b = detectedCard(1); return (a && a.memGb ? a.memGb : 48) + (b && b.memGb ? b.memGb : 48); }
+      const c = detectedCard(gpu);
+      return c && c.memGb ? c.memGb : ((((builtinGpus()[gpu]) || {}).memGb));
+    }
+    /* 官方/最佳社区实践表(可溯源,禁止臆造):
+       llama.cpp: -fa on(git-master 官方建议长上下文开 FA,本机实跑稳定)
+       SGLang: --enable-cache-report(DSH 命中率依赖,官方参数);--kv-cache-dtype fp8_e4m3(FP8 KV 官方支持,48G+ 省显存);
+               --mem-fraction-static 单卡独占经验值:≈48G→0.92,≥80G(96G)→0.75(大显存留 KV/激活余量,社区单卡长上下文实践) */
+    function bpFor(fwLabel, f, v) {
+      if (fwLabel === "llama.cpp") {
+        if (f === "-fa") return "on";
+        return null;
+      }
+      if (fwLabel === "SGLang") {
+        if (f === "--enable-cache-report") return "";
+        if (f === "--kv-cache-dtype") return "fp8_e4m3";
+        if (f === "--mem-fraction-static") {
+          const gb = v ? cardMemGb(v.gpu) : 0;
+          if (gb >= 80) return "0.75";
+          if (gb >= 40) return "0.92";
+          return null;
+        }
+        if (f === "--context-length") return v && v.contextWindow ? String(v.contextWindow) : null;
+      }
       return null;
     }
+    function recChain(g, f, v, siblings) {
+      const pick = (ver) => { for (const p of parseLaunchCommand((ver && ver.launchCommand) || "")) if (norm(p[0]) === norm(f)) return p[1]; return null; };
+      const vs = (g && g.versions) || [];
+      const a = vs.find((x) => x.active) || vs[0];
+      if (a) { const r = pick(a); if (r != null) return { rec: r, src: "同量化" }; }
+      const sib = (siblings || []).slice().sort((x, y) => (y.active ? 1 : 0) - (x.active ? 1 : 0));
+      for (const s of sib) {
+        const r = pick(s);
+        if (r != null) {
+          const sameMem = !v || cardMemGb(s.gpu) === cardMemGb(v.gpu);
+          return { rec: r, src: sameMem ? "同模型" : "同模型·显存差异" };
+        }
+      }
+      const b = bpFor(g && g.fwLabel, f, v);
+      if (b != null) return { rec: b, src: "官方" };
+      return null;
+    }
+    /* 版本行短标签:profile 名剥掉 base + 量化 + 框架 + 卡后剩余修饰词(如 MTP/副本2);空则不显示 */
+    function versionTag(v) {
+      let s = String((v && v.name) || "");
+      if (v.__base) s = s.split(v.__base).join("");
+      if (v.__qname) s = s.split(v.__qname).join("");
+      s = s.split("llama.cpp").join("").split("SGLang").join("").split("vLLM").join("");
+      s = s.replace(/\b(llama|sglang|vllm)\b/gi, "");
+      s = s.replace(/双卡|\(1,0\)|\(0,1\)|[Gg][Pp][Uu]\s?\d|卡\s?\d/g, "");
+      return s.replace(/[ ·]+/g, " ").replace(/^[-–—·\s]+|[-–—·\s]+$/g, "").trim();
+    }
+    /* 服务模型名参数(缺失校验用):各框架下「对外展示的模型名」flag */
+    const MODEL_NAME_FLAG = { llama: "-a", sglang: "--served-model-name", vllm: "--served-model-name" };
 
     /* 已知不可用条目(树徽章 + 详情红字;按完整 profile 名索引)。
        仓库默认空;个人调机记录请写在本机,不要提交。 */
@@ -585,20 +737,32 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
     function fmtK(n) { n = Number(n) || 0; if (n >= 1000000) return Math.round(n / 1000000) + "M"; if (n >= 1000) return Math.floor(n / 1000) + "K"; return String(n); }
     /* profile 名约定(版本号已废弃):"<模型> · <框架> · <卡>"——首段=模型,卡段=命名用 */
     function modelOf(name) { const s = String(name || ""); const i = s.indexOf(" · "); return i > 0 ? s.slice(0, i) : s; }
+    /* 双卡判定(格式统一):null(旧表达)或逗号串 "1,0"(新表达)均算双卡 */
+    function isDual(g) { return g === null || g === undefined || (typeof g === "string" && g.indexOf(",") !== -1); }
+    /* 卡占用匹配:双卡互相视为同卡占用(任一双卡在跑即冲突);单卡按编号精确匹配 */
+    function cardBusy(s, g) { return isDual(g) ? isDual(s.gpu) : s.gpu === g; }
     /* 卡名:检测短名优先(gpus.json,短名已去 NVIDIA/GeForce/RTX/架构词),未检测回退服务端内置表 */
     function gpuName(g) {
-      if (g == null) return "双卡";
+      if (isDual(g)) return "双卡";
       const c = detectedCard(g);
       const bn = ((builtinGpus()[g]) || {}).name;
       return c ? c.shortName : (bn || ("GPU" + g));
     }
     function shortPath(p) { const pre = "/models/"; const i = String(p || "").lastIndexOf(pre); return i >= 0 ? String(p).slice(i + pre.length) : String(p || ""); }
     function gpuLabel(g) {
-      if (g == null) return "双卡(1,0)";
+      if (isDual(g)) return "双卡(1,0)";
       const c = detectedCard(g);
       return c ? c.shortName : (((builtinGpus()[g]) || {}).name || ("GPU " + g));
     }
     function defaultPort(gpu) { return gpu === 0 ? 11436 : 11437; }
+    /* 同卡双开端口池:按卡分池(偶端口=卡0/4090,奇端口=卡1/6000,贴合 11436=4090、11437=6000 心智),
+       默认端口在前,跳过注册表已占端口;本卡 3 口全占则返回 null */
+    function nextFreePort(gpu, servers) {
+      const used = new Set((servers || []).map((s) => s.port));
+      const pref = gpu === 0 ? [11436, 11440, 11442] : [11437, 11439, 11441];
+      for (const p of pref) if (!used.has(p)) return p;
+      return null;
+    }
 
     /* launchCommand 解析/构建(与 lib/command.js 同构;返回 [[flag,value],...]) */
     function parseLaunchCommand(str) {
@@ -620,8 +784,8 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
     function flagVal(flags, f) { const x = flags.find((y) => y[0] === f); return x ? x[1] : null; }
 
     /* ---------- 数据派生 ---------- */
-    /* 三层化:顶层=checkpoint(=modelPath,版本1 要选的模型);其下 framework 子组(版本2 参数版本树) */
     function buildGroups(profiles) {
+      // 顶层 = checkpoint(=modelPath,版本1 要选的模型);其下 framework 子组(版本2 参数版本树)
       const cpMap = new Map();
       for (const p of profiles) {
         let cg = cpMap.get(p.modelPath);
@@ -670,7 +834,7 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
           for (const sg of cg.fwGroups) {
             const act = sg.activeV; if (!act) continue;
             if (s.framework !== sg.fw) continue;
-            if (s.gpu == null || s.gpu === undefined || s.gpu !== act.gpu) continue;
+            if (isDual(s.gpu) || s.gpu !== act.gpu) continue;
             const sm = String(s.model || "").toLowerCase(), am = String(act.model || "").toLowerCase();
             let score = 0;
             if (sm && am) { if (sm === am) score = 2; else if (am.indexOf(sm) !== -1 || sm.indexOf(am) !== -1) score = 1; }
@@ -694,7 +858,7 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         if (c > 0) {
           if (!Number.isInteger(np) || np < 1 || c % np !== 0) out.push({ tone: "bad", msg: "-c " + c + " 不能被 -np " + np + " 整除(per-slot 上下文必须为整数)" });
           else if (p.contextWindow && c / np < p.contextWindow) out.push({ tone: "warn", msg: "per-slot " + fmtK(c / np) + " 低于原生 " + fmtK(p.contextWindow) + "(DSH compaction 80% 阈值会算错)" });
-          const cap = p.gpu != null ? (detectedCard(p.gpu) ? detectedCard(p.gpu).memGb : (((builtinGpus()[p.gpu]) || {}).memGb)) : undefined;
+          const cap = !isDual(p.gpu) ? (detectedCard(p.gpu) ? detectedCard(p.gpu).memGb : (((builtinGpus()[p.gpu]) || {}).memGb)) : undefined;
           if (cap) {
             const kvGb = c * (Number(p.kvBytesPerToken) || 65536) / 1e9;
             if (kvGb > cap - 1) out.push({ tone: "warn", msg: "KV 估算 ~" + Math.round(kvGb) + "G 超 " + cap + "G 容量(未计权重,OOM 风险更高)" });
@@ -705,6 +869,9 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         if (val("--enable-cache-report") == null) out.push({ tone: "warn", msg: "缺 --enable-cache-report(DSH 底部缓存命中率恒 0%)" });
         if (val("--speculative-num-draft-tokens") != null) out.push({ tone: "warn", msg: "--speculative-num-draft-tokens 必须等于草稿模型 block_size(不等启动即崩)" });
       }
+      /* v7 §14.4:服务模型名缺失 → 请求方(含 DSH)传的 model 名将落到框架默认,提示显式设置 */
+      const mnf = MODEL_NAME_FLAG[p.framework];
+      if (mnf && val(mnf) == null) out.push({ tone: "warn", msg: "缺 " + mnf + "(未设服务模型名,客户端按名请求会落到框架默认值)" });
       return out;
     }
 
@@ -715,13 +882,14 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         else f.push({ tone: s.status === "running" ? "ok" : "bad", where: String(s.port), msg: s.status === "running" ? "health " + (s.health || "") + " · " + (s.model || "") : "离线" });
       }
       gpuCardList().forEach((c) => {
-        const occ = servers.find((s) => s.status === "running" && (s.gpu == null || s.gpu === c.index));
+        const occ = servers.find((s) => s.status === "running" && (isDual(s.gpu) || s.gpu === c.index));
         if (!occ) f.push({ tone: "ok", where: c.shortName, msg: "空闲 · " + defaultPort(c.index) + " 可启动托管版本" });
       });
       const total = groups.reduce((n, cg) => n + cg.fwGroups.reduce((m, sg) => m + sg.versions.length, 0), 0);
       let ok = 0;
       for (const cg of groups) for (const sg of cg.fwGroups) for (const p of sg.versions) {
         const issues = validateLocal(p);
+        if (p.modelMissing) issues.unshift({ tone: "bad", msg: "模型文件缺失(盘面上不存在): " + p.modelPath });
         if (issues.length) { for (const it of issues) f.push({ tone: it.tone, where: modelOf(p.name) + " · " + gpuName(p.gpu), msg: it.msg }); }
         else ok++;
       }
@@ -729,53 +897,196 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       return f;
     }
 
-    /* ---------- HTML 片段(字符串;事件走 data-act 委托) ---------- */
-    // 顶层 checkpoint 默认选中的框架(内存默认=每 checkpoint 第一个子组;实际选中态由 selFw[cg.id] 驱动)
-    function selectedFw(cg, selFw) {
-      return (selFw && selFw[cg.id] != null) ? selFw[cg.id] : (cg.fwGroups.length ? cg.fwGroups[0].fw : null);
+    /* ---------- 模型优先三层树(模型 → 量化 → 框架/版本;mockup-v5 定稿) ---------- */
+    /* 从显示名拆 base 模型名 + 量化标签。量化标记(连字符/空格分隔,取末尾):
+       UD-Qx_x / UD-IQx_x GGUF 量化名(Q8_K_XL、IQ4_XS…)、FP8/FP16/BF16/NVFP4/FP4、APEX-MTP、GGUF;
+       Uncensored=变体(并入标签);尾部空格修饰词 MTP/DFLASH/dspark 并入量化标签。
+       拆不出量化标记时回退 model 字段再拆(如显示名 Qwen3.8-Flash-Next → 字段 …-UD-IQ4_XS)。 */
+    function splitQuant(display, fallback) {
+      let s = String(display || "").trim();
+      if (!s) s = String(fallback || "").trim();
+      if (!s) return { base: "未知", q: null };
+      // 末尾量化标记:UD-Qx/IQx 系 GGUF 量化名、FP8/FP16/BF16/NVFP4/FP4、APEX-MTP、GGUF
+      const QUANT = /[\s_-]((?:UD-)?(?:Q\d+|IQ\d+)(?:[_-][A-Za-z0-9]+)*|BF16|FP16|FP8|NVFP4|FP4|APEX-MTP|GGUF)$/i;
+      const mods = [];
+      for (;;) {
+        const mm = s.match(/\s+((?:MTP|DFLASH|dspark)[\w-]*)$/);
+        if (!mm) break;
+        mods.unshift(mm[1]);
+        s = s.slice(0, mm.index).trim();
+      }
+      let q = null;
+      const mq = s.match(QUANT);
+      if (mq) { q = mq[1]; s = s.slice(0, mq.index).trim(); }
+      let unc = false;
+      const mu = s.match(/[_-]Uncensored$/i);
+      if (mu) { unc = true; s = s.slice(0, mu.index).trim(); }
+      if (!q) {
+        // 显示名无量化标记 → 回退 model 字段取量化标记(base 仍用显示名)
+        const fb = String(fallback || "").trim();
+        if (fb) {
+          const mf = fb.match(QUANT);
+          if (mf) q = mf[1];
+        }
+      }
+      if (!s) s = "未知";
+      let label = q ? (unc ? q + " (Uncensored)" : q) : (unc ? "Uncensored" : null);
+      if (mods.length) label = (label ? label + " " : "") + mods.join(" ");
+      return { base: s, q: label || null };
     }
-    function treeHtml(groups, selId, runMap, q, selFw) {
-      if (!groups.length) return '<div class="mm-loading">暂无参数版本<br>保存的 profile 会出现在这里</div>';
-      const qL = (q || "").toLowerCase();
-      let h = "";
-      let shown = 0;
+    /* 模型优先树:buildGroups 输出 → 模型节点(base 名,同名模型跨量化目录/卡合并)
+       → 量化组(名称含 MTP/DFLASH/Uncensored 变体)→ 版本(profile)。
+       副作用:给每个 profile 挂 __base/__qname(对象来自本次 fetch,可安全改写)。 */
+    function buildModelTree(groups) {
+      const mMap = new Map();
       for (const cg of groups) {
-        // 顶层命中:路径/模型名,或有任一字组版本匹配(命中则整组可见,下拉+版本行都渲染)
-        let cpHit = !qL || String(cg.path).toLowerCase().indexOf(qL) !== -1 || String(cg.short).toLowerCase().indexOf(qL) !== -1;
-        let sg = cg.fwGroups.find((x) => x.fw === selectedFw(cg, selFw)) || null;
-        let rows = qL ? [] : (sg ? sg.versions : []);
-        if (qL) {
-          // 有搜索:跨子组聚合命中行(按版本名/模型路径),并标顶层命中
-          for (const x of cg.fwGroups) for (const v of x.versions) {
-            if (v.name.toLowerCase().indexOf(qL) !== -1 || String(v.modelPath || "").toLowerCase().indexOf(qL) !== -1) { rows.push(v); cpHit = true; }
+        for (const sg of cg.fwGroups) {
+          for (const v of sg.versions) {
+            const sq = splitQuant(modelOf(v.name), v.model);
+            v.__base = sq.base;
+            v.__qname = sq.q || "默认";
+            let m = mMap.get(sq.base);
+            if (!m) { m = { base: sq.base, paths: [], cards: [], qs: new Map() }; mMap.set(sq.base, m); }
+            if (v.modelPath && m.paths.indexOf(v.modelPath) === -1) m.paths.push(v.modelPath);
+            const cardKey = isDual(v.gpu) ? "dual" : String(v.gpu);
+            if (m.cards.indexOf(cardKey) === -1) m.cards.push(cardKey);
+            if (!m.qs.has(v.__qname)) m.qs.set(v.__qname, { name: v.__qname, versions: [] });
+            m.qs.get(v.__qname).versions.push(v);
           }
         }
-        if (!cpHit && !rows.length) continue;
-        shown += rows.length;
-        // 顶层标题(仅模型路径;框架标签下移到下拉)
-        h += '<div class="mm-mGroup"><div class="mm-mHead"><span class="mm-mp" title="' + esc(cg.path) + '">' + esc(shortPath(cg.path)) + "</span></div>";
-        // 框架下拉:选项 = 该 checkpoint 已存在的 framework 集合(不去重),选中态走 onChange(data-act=sel-fw)
-        if (cg.fwGroups.length) {
-          const curFw = selectedFw(cg, selFw);
-          h += '<div class="mm-fwRow"><select class="mm-sel" data-act="sel-fw" data-cp="' + esc(cg.id) + '" title="选择本模型的推理框架">' +
-            cg.fwGroups.map((x) => '<option value="' + esc(x.fw) + '"' + (x.fw === curFw ? " selected" : "") + ">" + esc(x.fwLabel) + "</option>").join("") +
-            "</select></div>";
+      }
+      const gkey = (p) => (p.gpu === 0 ? 0 : p.gpu === 1 ? 1 : 2);
+      const list = [...mMap.values()];
+      for (const m of list) {
+        for (const qq of m.qs.values()) {
+          qq.versions.sort((a, b) => (gkey(a) - gkey(b)) || String(a.framework).localeCompare(String(b.framework)) || String(a.name).localeCompare(String(b.name)));
         }
-        // 版本行(版本2:同 checkpoint+框架 的不同参数/解码方案;gpuName+modelOf+run/dead 徽章)
-        for (const v of rows) {
-          const isSel = v.id === selId;
-          const run = runMap.get(v.id);
-          const dead = KNOWN_DEAD[v.name];
-          h += '<div class="mm-ver' + (isSel ? " mm-ver--sel" : "") + (run ? " mm-ver--run" : "") + (dead ? " mm-ver--fail" : "") + '" data-act="select" data-id="' + esc(v.id) + '">';
-          h += '<span class="mm-vt">' + esc(gpuName(v.gpu)) + (v.active ? " ▶" : "") + "</span>";
-          h += '<span class="mm-vn" title="' + esc(v.name) + '">' + esc(modelOf(v.name)) + "</span>";
-          if (run) h += '<span class="mm-vr">● @' + run.port + (run.ext ? " · 外" : "") + "</span>";
-          else if (dead) h += '<span class="mm-vf">' + (v.framework === "vllm" ? "⚠ vLLM" : "✗ 不可行") + "</span>";
-          h += "</div>";
+        m.qs = [...m.qs.values()]; // 按首次出现顺序
+      }
+      list.sort((a, b) => a.base.localeCompare(b.base));
+      return list;
+    }
+    /* 卡过滤:"all" | "dual"(双卡 gpu==null 或 "1,0") | 卡索引字符串 */
+    function cardMatch(v, cardFilter) {
+      if (!cardFilter || cardFilter === "all") return true;
+      if (cardFilter === "dual") return isDual(v.gpu);
+      return v.gpu === Number(cardFilter);
+    }
+
+    /* ---------- HTML 片段(字符串;事件走 data-act 委托) ---------- */
+    function treeHtml(modelsIn, selId, runMap, q, cardFilter, openSet, benchMap) {
+      if (!modelsIn.length) return '<div class="mm-loading">暂无参数版本<br>保存的 profile 会出现在这里</div>';
+      const qL = (q || "").toLowerCase();
+      const cardLabel = (k) => (k === "dual" ? gpuName(null) : gpuName(Number(k)));
+      /* v7 §15:标注各模型运行中服务(● :port)并把含运行版本的模型置顶(稳定排序保原序) */
+      const models = modelsIn.map((m) => {
+        let r = null;
+        for (const o of m.qs) for (const vv of o.versions) { const rr = runMap.get(vv.id); if (rr) r = rr; }
+        return Object.assign({}, m, { __run: r });
+      });
+      models.sort((a, b) => (b.__run ? 1 : 0) - (a.__run ? 1 : 0));
+      let h = "";
+      let shownM = 0, shownV = 0;
+      for (const m of models) {
+        // 卡是版本属性不是模型层级:按该模型全部版本覆盖的卡做过滤
+        if (cardFilter && cardFilter !== "all" && m.cards.indexOf(cardFilter) === -1) continue;
+        const modelHit = !qL || m.base.toLowerCase().indexOf(qL) !== -1 ||
+          m.paths.some((p) => shortPath(p).toLowerCase().indexOf(qL) !== -1) ||
+          m.cards.some((k) => cardLabel(k).toLowerCase().indexOf(qL) !== -1);
+        const qShow = m.qs.filter((o) => {
+          if (cardFilter && cardFilter !== "all" && !o.versions.some((v) => cardMatch(v, cardFilter))) return false;
+          if (!qL || modelHit) return true;
+          if (o.name.toLowerCase().indexOf(qL) !== -1) return true;
+          for (const v of o.versions) {
+            if (v.framework.toLowerCase().indexOf(qL) !== -1) return true;
+            if (String(v.name || "").toLowerCase().indexOf(qL) !== -1) return true;
+          }
+          return false;
+        });
+        if (!modelHit && !qShow.length) continue;
+        shownM++;
+        const mkey = m.base;
+        // 展开态只由 openSet 决定;选中不强制展开,否则带选中版本时无法折叠
+        const mOpen = openSet.has(mkey);
+        const selInModel = selId != null && m.qs.some((o) => o.versions.some((v) => v.id === selId));
+        const chips = m.cards.map((k) => '<span class="mm-mcard">' + esc(cardLabel(k)) + "</span>").join("");
+        const nvShow = qShow.reduce((n, o) => n + o.versions.filter((v) => cardMatch(v, cardFilter)).length, 0);
+        const runFlag = m.__run ? '<span class="mm-mrun" title="运行中服务">● :' + m.__run.port + "</span>" : "";
+        h += '<div class="mm-mrow' + (mOpen ? " open" : "") + (selInModel ? " mm-mrow--sel" : "") + '" data-act="tg-model" data-key="' + esc(mkey) + '">';
+        h += '<span class="mm-arrow">▶</span><span class="mm-mcol">';
+        h += '<span class="mm-mline1"><span class="mm-mname" title="' + esc(m.paths.map(shortPath).join("\n")) + '">' + esc(m.base) + "</span>" + runFlag + "</span>";
+        h += '<span class="mm-mline2">' + chips + '<span class="mm-mcount">' + qShow.length + " 量化 · " + nvShow + " 版</span></span>";
+        h += "</span></div>";
+        h += '<div class="mm-msub">';
+        for (const o of qShow) {
+          const vShow = o.versions.filter((v) => cardMatch(v, cardFilter));
+          if (!vShow.length) continue;
+          shownV += vShow.length;
+          const qkey = mkey + "::" + o.name;
+          const qOpen = openSet.has(qkey);
+          let runInQ = 0, benched = 0;
+          for (const v of vShow) {
+            if (runMap.get(v.id)) runInQ++;
+            const b = benchMap.get(v.name);
+            if (b && b.tps != null) benched++;
+          }
+          const qstat = runInQ ? '<span class="mm-qstat mm-qstat--run">●' + runInQ + "</span>"
+            : benched ? '<span class="mm-qstat mm-qstat--bench">测' + benched + "</span>"
+            : '<span class="mm-qstat mm-qstat--no">' + vShow.length + "版</span>";
+          const qCards = [];
+          for (const v of vShow) { const k = isDual(v.gpu) ? "dual" : String(v.gpu); if (qCards.indexOf(k) === -1) qCards.push(k); }
+          h += '<div class="mm-qrow' + (qOpen ? " open" : "") + '" data-act="tg-q" data-key="' + esc(qkey) + '">';
+          h += '<span class="mm-arrow">▶</span>';
+          h += '<span class="mm-qtag">' + esc(o.name) + '</span><span class="mm-qcard">· ' + esc(qCards.map(cardLabel).join("+")) + "</span>";
+          h += qstat + '</div><div class="mm-vsub2">';
+          for (const v of vShow) {
+            const isSel = v.id === selId;
+            const run = runMap.get(v.id);
+            const dead = v.modelMissing ? "模型文件缺失(盘面上不存在)" : KNOWN_DEAD[modelOf(v.name)];
+            const b = benchMap.get(v.name);
+            const vstat = run
+              ? '<span class="mm-vstat mm-vstat--run">● 运行 @' + run.port + (run.ext ? " · 外" : "") + "</span>"
+              : dead
+                ? '<span class="mm-vstat mm-vstat--fail">' + (v.modelMissing ? "✗ 缺失" : (v.framework === "vllm" ? "⚠ vLLM" : "✗ 不可行")) + "</span>"
+                : b && b.tps != null
+                  ? '<span class="mm-vstat mm-vstat--bench" title="TTFB ' + (b.ttfbMs != null ? b.ttfbMs + " ms" : "-") + " · KV " + (b.ctxAllocated != null ? fmtK(b.ctxAllocated) : "-") + '">' + b.tps + " tok/s" + (b.fullCtx ? "" : " · 未满") + "</span>"
+                  : '<span class="mm-vstat mm-vstat--no">未测</span>';
+            h += '<div class="mm-vrow' + (isSel ? " mm-vrow--sel" : "") + (run ? " mm-vrow--run" : "") + '" data-act="select" data-id="' + esc(v.id) + '">';
+            h += '<span class="mm-fw mm-fw--' + esc(v.framework) + '">' + esc(FRAMEWORKS[v.framework] || v.framework) + "</span>";
+            const vtag = versionTag(v);
+            if (vtag) h += '<span class="mm-vtag" title="' + esc(v.name) + '">' + esc(vtag) + "</span>";
+            h += '<span class="mm-qcard">· ' + esc(gpuName(v.gpu)) + (v.active ? " ▶" : "") + "</span>";
+            h += vstat + "</div>";
+          }
+          h += "</div></div>";
         }
         h += "</div>";
       }
-      if (qL && !shown) h += '<div class="mm-loading">无匹配「' + esc(q) + '」</div>';
+      if (qL && !shownM) h = '<div class="mm-loading">无匹配「' + esc(q) + "」</div>";
+      return h;
+    }
+    /* 测速对比:同 base 模型全部版本(跨量化/框架/卡),取各 profile 最新一次测速;选中行高亮 */
+    function compareTableHtml(v, models, benchMap) {
+      const m = models.find((x) => x.base === v.__base) || null;
+      const rows = [];
+      if (m) for (const o of m.qs) for (const vv of o.versions) rows.push(Object.assign({}, vv, { qname: o.name }));
+      let h = '<details class="mm-cmp mm-fold"><summary class="mm-cmpHead">测速对比 · 该模型全部版本<span class="mm-meta">默认收起 · 点击展开 · 取各版本最新一次测速</span></summary><div class="mm-cmpBody">';
+      h += '<div class="mm-brow mm-brow--head"><span>框架</span><span>量化 · 卡</span><span class="mm-bnum">tok/s</span><span class="mm-bnum">TTFB</span><span class="mm-bnum">KV 全上下文</span></div>';
+      for (const vv of rows) {
+        const b = benchMap.get(vv.name);
+        const me = vv.id === v.id ? " mm-brow--me" : "";
+        h += '<div class="mm-brow' + me + '"><span><span class="mm-fw mm-fw--' + esc(vv.framework) + '">' + esc(FRAMEWORKS[vv.framework] || vv.framework) + '</span></span><span class="mm-bmeta" title="' + esc(vv.name) + '">' + esc(vv.qname) + " · " + esc(gpuName(vv.gpu)) + "</span>";
+        if (b && b.tps != null) {
+          const full = b.fullCtx === true || (b.ctxAllocated != null && b.ctxTarget != null && b.ctxAllocated >= b.ctxTarget);
+          h += '<span class="mm-bnum"><b>' + b.tps + "</b></span>";
+          h += '<span class="mm-bmeta">' + (b.ttfbMs != null ? b.ttfbMs + " ms" : "—") + "</span>";
+          h += '<span class="mm-bmeta">' + (b.ctxAllocated != null ? fmtK(b.ctxAllocated) + (full ? " ✓" : "") : "—") + "</span>";
+        } else {
+          h += '<span class="mm-bnum">—</span><span class="mm-bmeta">—</span><span class="mm-bmeta">未测</span>';
+        }
+        h += "</div>";
+      }
+      h += "</div></details>";
       return h;
     }
 
@@ -799,7 +1110,7 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         if (cTok > 0 && v.kvBytesPerToken) kv = "~" + (cTok * v.kvBytesPerToken / 1e9).toFixed(cTok * v.kvBytesPerToken / 1e9 < 10 ? 1 : 0) + "G (" + type + ")";
         else if (cTok > 0) kv = type;
       }
-      const cap = v.gpu != null ? (detectedCard(v.gpu) ? detectedCard(v.gpu).memGb : (((builtinGpus()[v.gpu]) || {}).memGb)) : undefined;
+      const cap = !isDual(v.gpu) ? (detectedCard(v.gpu) ? detectedCard(v.gpu).memGb : (((builtinGpus()[v.gpu]) || {}).memGb)) : undefined;
       const mine = (benchmarks || []).filter((b) => b.profile === v.name || (run && b.port === run.port));
       const last = mine[mine.length - 1];
       const benchPill = last
@@ -812,16 +1123,48 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         benchPill;
     }
 
-    function paramsTableHtml(g, v, draft) {
+    function paramsTableHtml(g, v, draft, siblings) {
       const enums = [...new Set((CATS[g.fwLabel] || []).filter((x) => x.t === "enum").flatMap((x) => (x.d || "").replace(/^\[/, "").replace(/\]$/, "").split(",").map((s) => s.trim()).filter(Boolean)))];
-      let h = '<div class="mm-secLabel">启动参数(' + draft.length + ")</div>";
+      /* v7 §15 行位对齐:行集 = 本版本草稿 ∪ 同模型同框架兄弟量化参数并集(兄弟按名排序 → 并集顺序只由
+         (base, fw) 决定,不同量化打开参数表行位一致);草稿没有的显示灰行「未设 + 兄弟量化值」,可一键补加。 */
+      const draftSet = new Set();
+      for (const [f] of draft) draftSet.add(norm(f));
+      const seen = new Set();
+      const allFlags = [];
+      for (const [f] of draft) { const k = norm(f); if (!seen.has(k)) { seen.add(k); allFlags.push(f); } }
+      const sibVal = new Map();
+      const sibs = (siblings || []).slice().sort((a, b) => (a.name < b.name ? -1 : 1));
+      for (const s of sibs) {
+        for (const [f, val0] of parseLaunchCommand(s.launchCommand || "")) {
+          const k = norm(f);
+          if (!seen.has(k)) { seen.add(k); allFlags.push(f); }
+          if (!sibVal.has(k)) sibVal.set(k, []);
+          const arr = sibVal.get(k);
+          const tag = s.__qname || "默认";
+          if (!arr.some((x) => x.indexOf(tag + "=") === 0)) arr.push(tag + "=" + (val0 === "" ? "开" : val0));
+        }
+      }
+      let h = '<div class="mm-secLabel">启动参数(' + draft.length + ')<span class="mm-meta">9 组固定序 · 兄弟量化 ' + sibs.length + " 项行位对齐</span></div>";
       if (enums.length) h += '<datalist id="mmDl">' + enums.map((x) => '<option value="' + esc(x) + '"></option>').join("") + "</datalist>";
       h += '<div class="mm-pTable"><div class="mm-pHead"><span>参数</span><span>值</span><span>说明(中文 · 悬停=英文原文)</span></div>';
-      const rows = sortedParams(g.fwLabel, draft);
-      for (const [f, val0] of rows) {
-        const i = draft.findIndex((x) => x[0] === f);
+      const rows = sortedParams(g.fwLabel, allFlags.map((f) => [f, ""]));
+      let lastG9 = null;
+      for (const row of rows) {
+        const f = row[0];
+        const g9 = g9Of(g.fwLabel, f);
+        if (g9 !== lastG9) { h += '<div class="mm-pGroup">' + (G9_ZH[g9] || g9) + "</div>"; lastG9 = g9; }
         const cat = catItem(g.fwLabel, f);
-        const rec = recFor(g, f);
+        const rc = recChain(g, f, v, siblings);
+        const rec = rc ? rc.rec : null;
+        const i = draft.findIndex((x) => norm(x[0]) === norm(f));
+        if (i < 0) {
+          /* 兄弟量化已设,本版本未设:灰行 + 兄弟值 + 「＋」补加(走 pickParam 带推荐/默认) */
+          const sibTxt = (sibVal.get(norm(f)) || []).join(" · ");
+          const zh = cat ? (zhFor(g.fwLabel, cat.f) || cat.z || "") : "(自定义参数)";
+          h += '<div class="mm-pRow mm-pRow--unset"><span class="mm-pFlag" title="兄弟量化已设,本版本未设">' + esc(f) + '</span><span class="mm-pVal"><span class="mm-unsetTag">未设' + (sibTxt ? '<span class="mm-sibHint">其他量化:' + esc(sibTxt) + "</span>" : "") + '</span></span><span class="mm-pDesc">' + esc(zh) + '</span><span class="mm-pDel" title="加到本版本" data-act="addflag" data-f="' + esc(f) + '">＋</span></div>';
+          continue;
+        }
+        const val0 = draft[i][1];
         const diff = recMismatch(cat, val0, rec);
         let cell;
         if (cat && cat.t === "bool") {
@@ -836,7 +1179,7 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         else {
           const zh = zhFor(g.fwLabel, cat.f) || cat.z || cat.s;
           let recHtml = "";
-          if (rec != null) { const rd = cat.t === "bool" ? (isOn(rec) ? "开" : "关") : rec; if (rd !== "") recHtml = ' <span class="mm-recChip">推荐 ' + esc(rd) + "</span>"; }
+          if (rec != null) { const rd = cat.t === "bool" ? (isOn(rec) ? "开" : "关") : rec; if (rd !== "") recHtml = ' <span class="mm-recChip" title="推荐值来源">推荐 ' + esc(rd) + (rc && rc.src ? " · " + esc(rc.src) : "") + "</span>"; }
           const dflt = cat.d && cat.d !== "" ? (' <span class="mm-dflt">默认 ' + esc(cat.d) + "</span>") : "";
           desc = '<span class="mm-pDesc" title="' + esc(cat.s + ((cat.d && cat.d !== "") ? (" 默认 " + cat.d) : "")) + '">' + esc(zh) + recHtml + dflt + "</span>";
         }
@@ -878,7 +1221,7 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       return h;
     }
 
-    function pickerHtml(g, v, draft, q) {
+    function pickerHtml(g, v, draft, q, siblings) {
       const cat = CATS[g.fwLabel] || [];
       const have = new Set(draft.map((x) => norm(x[0])));
       const qL = (q || "").toLowerCase();
@@ -887,9 +1230,9 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       for (const x of items) {
         if (x.g !== lastG) { h += '<div class="mm-pkGroup">' + (GROUP_ZH[x.g] || x.g) + "</div>"; lastG = x.g; }
         const dflt = x.d && x.d !== "" ? x.d : "(开/关)";
-        const rec = recFor(g, x.f);
+        const rec = recChain(g, x.f, v, siblings);
         let recHtml = "";
-        if (rec != null) { const rd = x.t === "bool" ? (rec === "" ? "开" : "关") : rec; if (rd !== "") recHtml = '<span class="mm-recChip">推荐 ' + esc(rd) + "</span>"; }
+        if (rec && rec.rec != null) { const rd = x.t === "bool" ? (rec.rec === "" ? "开" : "关") : rec.rec; if (rd !== "") recHtml = '<span class="mm-recChip" title="推荐值来源">' + esc(rd) + " · " + esc(rec.src) + "</span>"; }
         const zh = zhFor(g.fwLabel, x.f) || x.z || x.s;
         h += '<div class="mm-pkItem" data-act="pickparam" data-param="' + esc(x.f) + '"><span class="mm-f">' + esc(x.f) + '</span><span class="mm-d">' + esc(dflt) + '</span><span class="mm-s" title="' + esc(x.s) + '">' + esc(zh) + "</span>" + recHtml + "</div>";
       }
@@ -900,30 +1243,55 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
     function benchBoxHtml(v, run, benchmarks) {
       const mine = (benchmarks || []).filter((b) => b.profile === v.name || (run && b.port === run.port));
       if (!mine.length && !run) return "";
-      let h = '<div class="mm-benchBox"><div class="mm-logHead"><span class="mm-lt">测速记录</span><span class="mm-meta">固定 prompt · 非流式 ' + (mine.length ? mine[mine.length-1].maxTokens : 256) + ' tokens · tok/s=(tokens-1)/生成时长</span><div class="mm-spacer"></div>';
-      if (run) h += '<button class="mm-btn mm-btn--sm" data-act="bench" data-port="' + run.port + '">重新测速</button>';
+      const last = mine[mine.length - 1];
+      /* v7:测速记录默认折叠,summary 显示最新 tok/s(不必展开就能看头条数);按钮在内容区(summary 内不放交互件) */
+      let h = '<details class="mm-benchBox mm-fold"><summary class="mm-foldSum">测速记录';
+      if (last && last.tps != null) h += ' <span class="mm-benchTps">最新 <b>' + last.tps + "</b> tok/s" + (last.fullCtx ? " · 满ctx" : "") + "</span>";
+      h += "</summary>";
+      h += '<div class="mm-benchBar">';
+      if (run) {
+        h += '<button class="mm-btn mm-btn--sm" data-act="bench" data-port="' + run.port + '">重新测速</button>';
+        h += '<button class="mm-btn mm-btn--sm" data-act="benchFullCtx" data-port="' + run.port + '" title="校验满上下文 + 流式 warmup/测量,单并发">满上下文热测速</button>';
+      } else {
+        h += '<span class="mm-meta mm-benchEmpty">启动后可『一键测速』</span>';
+      }
       h += "</div>";
       if (mine.length) {
         h += '<div class="mm-benchList">';
         for (const b of mine.slice(-3).reverse()) {
           const d = new Date(b.at);
           const ts = (d.getMonth() + 1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-          h += '<div class="mm-benchRow"><span class="mm-benchTps"><b>' + (b.tps != null ? b.tps : "-") + '</b> tok/s</span><span class="mm-meta">' + b.tokens + " tokens · " + (b.ms / 1000).toFixed(1) + "s · @" + b.port + " · " + ts + "</span></div>";
+          if (b.scheme === "full-ctx-warm-v2") {
+            const ctxTag = b.fullCtx ? "满ctx " + (b.ctxAllocated || "?") : "ctx未验证";
+            h += '<div class="mm-benchRow"><span class="mm-benchTps"><b>' + (b.tps != null ? b.tps : "-") + '</b> tok/s</span><span class="mm-meta">热测速 · TTFB ' + (b.ttfbMs != null ? b.ttfbMs : "-") + "ms · prefill " + (b.prefillTps != null ? b.prefillTps : "-") + " tok/s · " + ctxTag + " · @" + b.port + " · " + ts + "</span></div>";
+          } else {
+            h += '<div class="mm-benchRow"><span class="mm-benchTps"><b>' + (b.tps != null ? b.tps : "-") + '</b> tok/s</span><span class="mm-meta">' + b.tokens + " tokens · " + (b.ms / 1000).toFixed(1) + "s · @" + b.port + " · " + ts + "</span></div>";
+          }
         }
         h += "</div>";
       } else {
-        h += '<div class="mm-meta mm-benchEmpty">暂无测速记录' + (run ? "(点上方『重新测速』)" : " · 运行后点『一键测速』") + "</div>";
+        h += '<div class="mm-meta mm-benchEmpty">暂无测速记录</div>';
       }
-      h += "</div>";
+      h += "</details>";
       return h;
     }
 
     function tailHtml(g, v, run, logState, dead, draft, benchmarks, autoScroll) {
+      const issues = validateLocal({ ...v, launchCommand: buildLaunchCommand(draft) });
+      const badCount = issues.filter((it) => it.tone === "bad").length + (dead ? 1 : 0);
+      const warnCount = issues.filter((it) => it.tone === "warn").length;
+      /* v7:次要块折叠(托管参数/校验/日志);有故障默认展开,summary 直接报数 */
       let h = "";
-      h += '<div class="mm-secLabel">托管参数(自动,只读)</div><div class="mm-pTable">';
+      h += '<details class="mm-fold mm-tailFold"' + (badCount ? " open" : "") + '><summary class="mm-foldSum">托管参数(只读)· 校验 · 启动日志 ';
+      if (badCount) h += '<span class="mm-foldFlag mm-foldFlag--bad">✗ ' + badCount + " 故障</span>";
+      else if (warnCount) h += '<span class="mm-foldFlag mm-foldFlag--warn">⚠ ' + warnCount + " 待确认</span>";
+      else h += '<span class="mm-foldFlag mm-foldFlag--ok">✓ 校验通过</span>';
+      h += "</summary>";
+      h += '<div class="mm-pTable">';
       const mflag = g.fw === "llama" ? "-m" : (g.fw === "sglang" ? "--model-path" : "--model");
       h += '<div class="mm-pRow mm-pRow--locked"><span class="mm-pFlag">' + mflag + '</span><span class="mm-pVal"><span class="mm-txt">' + esc(v.modelPath) + '</span></span><span class="mm-pDesc">插件托管</span></div>';
-      const portHint = run ? ("@" + run.port) : (v.gpu === 0 ? "11436(卡0 推断)" : (v.gpu == null ? "11437(双卡推断)" : "11437(卡1 推断)"));
+      if (v.exePath) h += '<div class="mm-pRow mm-pRow--locked"><span class="mm-pFlag">exe</span><span class="mm-pVal"><span class="mm-txt">' + esc(v.exePath) + '</span></span><span class="mm-pDesc">覆盖全局框架路径</span></div>';
+      const portHint = run ? ("@" + run.port) : (v.gpu === 0 ? "11436(卡0 推断)" : (isDual(v.gpu) ? "11437(双卡推断)" : "11437(卡1 推断)"));
       h += '<div class="mm-pRow mm-pRow--locked"><span class="mm-pFlag">--port</span><span class="mm-pVal"><span class="mm-txt">' + esc(portHint) + '</span></span><span class="mm-pDesc">插件托管</span></div>';
       h += "</div>";
       h += '<div class="mm-vFoot">';
@@ -932,7 +1300,6 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         const np = flagVal(draft, "-np") == null ? 1 : Number(flagVal(draft, "-np"));
         if (c > 0 && np >= 1 && c % np === 0) h += '<div class="mm-okLine">✓ -c ' + c + " ÷ -np " + np + " = " + fmtK(c / np) + "(per-slot)</div>";
       }
-      const issues = validateLocal({ ...v, launchCommand: buildLaunchCommand(draft) });
       for (const it of issues) h += '<div class="' + (it.tone === "bad" ? "mm-errLine" : "mm-warnLine") + '">' + (it.tone === "bad" ? "✗ " : "⚠ ") + esc(it.msg) + "</div>";
       if (dead) h += '<div class="mm-errLine">✗ ' + esc(dead) + "</div>";
       if (!issues.length && !dead) h += '<div class="mm-okLine">✓ 校验通过(端口 / 托管参数 / 上下文约定)</div>';
@@ -951,6 +1318,7 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         } else h += '<span class="mm-ln">加载中…</span>';
         h += "</div></div>";
       }
+      h += "</details>";
       h += benchBoxHtml(v, run, benchmarks);
       return h;
     }
@@ -1009,7 +1377,8 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       const [treeQ, setTreeQ] = React.useState("");
       const [selId, setSelId] = React.useState(null);
       const [diffBase, setDiffBase] = React.useState(null);
-      const [selFw, setSelFw] = React.useState({}); // 顶层 checkpoint→框架选择(内存,不持久化;默认每 checkpoint 第一个子组)
+      const [openSet, setOpenSet] = React.useState(() => new Set()); // 树展开态唯一来源(模型/量化 key);选中只补开,折叠不受选中影响
+      const [cardFilter, setCardFilter] = React.useState("all"); // 卡过滤 tab:all | dual | 卡索引
       const [pickerOpen, setPickerOpen] = React.useState(false);
       const [pickerQ, setPickerQ] = React.useState("");
       const [logState, setLogState] = React.useState(null);
@@ -1020,7 +1389,13 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       const [busy, setBusy] = React.useState("");
       const [tick, setTick] = React.useState(0);
       const [showRegister, setShowRegister] = React.useState(false);
+      const [showFwCfg, setShowFwCfg] = React.useState(false); // 框架路径:平时不用,默认收起
       const [armedStop, setArmedStop] = React.useState(null); // 已 arm 的停止端口(null=正常态);二次确认护栏
+      const [moreOpen, setMoreOpen] = React.useState(false); // v7 三级动作「⋯」菜单(另存/对比/删除)
+      const [svcOpen, setSvcOpen] = React.useState(false); // 服务注册表 chips(默认折叠,省一行高度)
+      const [paneW, setPaneW] = React.useState(() => { try { return Math.min(560, Math.max(220, Number(localStorage.getItem("mm.paneW")) || 320)); } catch (err) { return 320; } }); // 左栏宽:拖拽可调,localStorage 持久化
+      const bodyRef = React.useRef(null);
+      const dragRef = React.useRef(null);
       const rootRef = React.useRef(null);
       const draftRef = React.useRef([]);
       const dirtyRef = React.useRef(false);
@@ -1034,6 +1409,10 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         clearTimeout(flash._t);
         flash._t = setTimeout(() => setFlashMsg(null), 6000);
       }
+      /* v7:P3 统一端点常驻横幅 → 挂载时一次性提示(自动消失,不再永久占一行) */
+      React.useEffect(() => {
+        flash("ok", "P3 规划 · 统一端点 http://127.0.0.1:11435/v1:一个端口跑所有模型,按 body.model 路由,切模型自动接管卡(常驻横幅已收进本提示)");
+      }, []);
 
       async function load() {
         try {
@@ -1084,6 +1463,30 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       const groups = React.useMemo(() => buildGroups(profiles), [profiles]);
       const runMap = React.useMemo(() => matchRun(servers, groups, profiles), [servers, groups, profiles]);
       const running = servers.filter((s) => s.status === "running");
+      /* 模型优先树 + 测速索引 + 卡 tab(数据驱动:检测卡列表 + 双卡) */
+      const models = React.useMemo(() => buildModelTree(groups), [groups]);
+      /* v7 兄弟量化版本:与选中版本同 base + 同框架的全部版本(除自身)。
+         参数表并集行集(行位对齐)+ 推荐链 L2 数据源;排序在 paramsTableHtml 内按名稳定化。 */
+      const sibVersions = React.useMemo(() => {
+        const cur = profiles.find((p) => p.id === selId) || null;
+        if (!cur) return [];
+        const m = models.find((x) => x.base === cur.__base);
+        if (!m) return [];
+        const arr = [];
+        for (const o of m.qs) for (const vv of o.versions) if (vv.framework === cur.framework && vv.id !== cur.id) arr.push(vv);
+        return arr;
+      }, [models, selId, profiles]);
+      const benchMap = React.useMemo(() => {
+        const m = new Map();
+        for (const b of benchmarks) if (b && b.profile != null) m.set(b.profile, b); // 后写覆盖=最新一次
+        return m;
+      }, [benchmarks]);
+      const cardTabs = React.useMemo(() => {
+        const tabs = [];
+        for (const c of gpuCardList() || []) tabs.push({ val: String(c.index), label: c.shortName || ("GPU" + c.index) });
+        if (profiles.some((p) => isDual(p.gpu))) tabs.push({ val: "dual", label: "双卡" });
+        return tabs;
+      }, [profiles, gpuInfo]);
 
       /* 选择:无效时默认 = 运行中版本 > 激活版本 > 第一个 */
       React.useEffect(() => {
@@ -1099,6 +1502,15 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         const v = profilesRef.current.find((p) => p.id === selId);
         if (v) { draftRef.current = parseLaunchCommand(v.launchCommand || ""); dirtyRef.current = false; }
         setDiffBase(null); setPickerOpen(false); setPickerQ("");
+      }, [selId]);
+
+      /* 选中变化 → 补开其模型/量化节点(仅新增 key;折叠不受选中影响,与 mockup 语义一致)。
+         依赖只取 selId:30s 刷新会换新 profiles→新 models 对象,带上 models 依赖会把用户手动折叠的节点每 30s 重新打开。 */
+      React.useEffect(() => {
+        const v = profilesRef.current.find((p) => p.id === selId);
+        if (!v || !v.__base) return;
+        const base = v.__base, qkey = v.__base + "::" + (v.__qname || "默认");
+        setOpenSet((s) => (s.has(base) && s.has(qkey) ? s : new Set(s).add(base).add(qkey)));
       }, [selId]);
 
       /* 选中变化 → 拉日志(路由 404 时降级提示;停止后按该版本托管端口取,历史日志可回看) */
@@ -1148,9 +1560,9 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         if (i < 0 || i >= flags.length) return;
         flags[i][1] = val;
         const cat = catItem(g.fwLabel, flags[i][0]);
-        const rec = recFor(g, flags[i][0]);
+        const rc = recChain(g, flags[i][0], v, sibVersions);
         const el = rootRef.current && rootRef.current.querySelector('input[data-i="' + i + '"]');
-        if (el) el.classList.toggle("mm-rec-diff", !!recMismatch(cat, val, rec));
+        if (el) el.classList.toggle("mm-rec-diff", !!(rc && recMismatch(cat, val, rc.rec)));
         markDirty();
       }
       function editBool(i, checked) {
@@ -1172,7 +1584,8 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       function pickParam(f) {
         const g = curGroup(); const v = curVer(); if (!g || !v) return;
         const cat = catItem(g.fwLabel, f);
-        const rec = recFor(g, f);
+        const rc = recChain(g, f, v, sibVersions);
+        const rec = rc ? rc.rec : null;
         let val = "";
         const noDflt = !cat || ["required", "null", "null(=model max)", "null(=auto)", "read from model"].indexOf(cat.d || "") !== -1;
         if (cat && cat.t !== "bool") {
@@ -1208,18 +1621,21 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
           await load();
         }).catch((err) => flash("err", "停止失败:" + err.message)).then(() => setBusy(""));
       }
-      function doStart() {
+      function doStart(port) {
         const v = curVer(); if (!v) return;
-        const port = defaultPort(v.gpu);
+        const p = port || defaultPort(v.gpu);
+        /* 非默认端口=同卡双开:占用者已在同卡,显存需装两份,确认一次 */
+        const occ2 = running.find((s) => cardBusy(s, v.gpu));
+        if (p !== defaultPort(v.gpu) && occ2 && !window.confirm("同卡双开 @" + p + ":" + (occ2.model || "") + " 已在 @" + occ2.port + " 运行,两实例同卡共享显存。继续?")) return;
         setBusy("start");
-        apiPost("/api/mm/start", { profile: v.name, port, gpu: v.gpu == null ? undefined : v.gpu }).then(async (r) => {
+        apiPost("/api/mm/start", { profile: v.name, port: p, gpu: isDual(v.gpu) ? "1,0" : v.gpu }).then(async (r) => {
           flash("ok", "已托管启动 @" + r.entry.port + "(pid " + r.entry.pid + ")· 盯 readyRe 锚点,失败即存日志");
           await load();
         }).catch((err) => flash("err", "启动失败:" + err.message)).then(() => setBusy(""));
       }
       function doTakeover() {
         const v = curVer(); if (!v) return;
-        const occ = running.find((s) => s.gpu === v.gpu);
+        const occ = running.find((s) => cardBusy(s, v.gpu));
         if (!occ) return;
         const port = occ.port;
         const occWarn = PROTECTED_PORTS.indexOf(port) !== -1 ? "(⚠ DSH 在用服务,停止将中断当前会话)" : "";
@@ -1228,7 +1644,7 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         (async () => {
           try {
             await apiPost("/api/mm/stop", { port, force: !occ.managed });
-            const r = await apiPost("/api/mm/start", { profile: v.name, port, gpu: v.gpu == null ? undefined : v.gpu });
+            const r = await apiPost("/api/mm/start", { profile: v.name, port, gpu: isDual(v.gpu) ? "1,0" : v.gpu });
             flash("ok", "接管完成 @" + port + ":" + (occ.model || "") + " 已停 → " + modelOf(v.name) + " 已启动(pid " + r.entry.pid + ")");
             await load();
           } catch (err) { flash("err", "接管失败:" + err.message); }
@@ -1286,6 +1702,16 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
           try { const b = await apiGet("/api/mm/benchmarks"); _lastBench = Array.isArray(b) ? b : []; setBenchmarks(_lastBench); } catch {}
         }).catch((err) => flash("err", /404|route/i.test(String(err.message)) ? "测速端点未生效——你手动重启一次 dsh 后自动可用" : "测速失败:" + err.message)).then(() => setBusy(""));
       }
+      /* 满上下文热测速:校验满上下文 + 流式 warmup/测量(单并发),落盘 benchmarks.json(scheme=full-ctx-warm-v2) */
+      function doBenchFullCtx(port) {
+        const v = curVer();
+        setBusy("benchfc:" + port);
+        apiPost("/api/mm/bench/fullctx", { port, profile: v ? v.name : null }).then(async (r) => {
+          const res = (r && r.result) || r;
+          flash("ok", "满上下文热测速 @" + res.port + ":decode " + res.tps + " tok/s · TTFB " + res.ttfbMs + "ms · prefill " + (res.prefillTps != null ? res.prefillTps + " tok/s" : "-") + " · ctx " + res.ctxAllocated + "/" + res.ctxTarget);
+          try { const b = await apiGet("/api/mm/benchmarks"); _lastBench = Array.isArray(b) ? b : []; setBenchmarks(_lastBench); } catch {}
+        }).catch((err) => flash("err", /404|route/i.test(String(err.message)) ? "满上下文测速端点未生效——你手动重启一次 dsh 后自动可用" : "满上下文测速失败:" + err.message)).then(() => setBusy(""));
+      }
       function doFwProbe(fw) {
         setFwProbe((m) => ({ ...m, [fw]: { ok: null, line: "探测中…" } }));
         apiPost("/api/mm/frameworks/probe", { framework: fw, exe: (fwEdit[fw] || "").trim() }).then((r) => {
@@ -1319,19 +1745,30 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       /* 事件委托(动态 innerHTML 子树) */
       function onRootClick(ev) {
         const t = ev.target && ev.target.closest ? ev.target.closest("[data-act]") : null;
+        /* v7:点「⋯」菜单区域之外才关菜单(菜单内空白/select 不误关) */
+        const inMenu = (ev.target && ev.target.closest && ev.target.closest(".mm-moreMenu")) || (t && t.dataset.act === "more");
+        if (moreOpen && !inMenu) setMoreOpen(false);
         if (!t) return;
         const act = t.dataset.act;
         if (act === "select") setSelId(t.dataset.id);
+        else if (act === "tg-model" || act === "tg-q") {
+          const key = t.dataset.key;
+          setOpenSet((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+        }
+        else if (act === "cardtab") setCardFilter(t.dataset.card || "all");
         else if (act === "save") doSave();
-        else if (act === "saveas") doSaveAs();
-        else if (act === "delete") doDelete();
-        else if (act === "start") doStart();
+        else if (act === "saveas") { setMoreOpen(false); doSaveAs(); }
+        else if (act === "delete") { setMoreOpen(false); doDelete(); }
+        else if (act === "start") doStart(t.dataset.port ? +t.dataset.port : undefined);
         else if (act === "takeover") doTakeover();
         else if (act === "stop" || act === "stopsrv") requestStop(Number(t.dataset.port), t.dataset.managed === "true");
         else if (act === "drawer") setDrawer((d) => !d);
         else if (act === "delparam") delParam(t.dataset.f);
         else if (act === "openpicker") { setPickerQ(""); setPickerOpen(true); }
         else if (act === "pickparam") pickParam(t.dataset.param);
+        else if (act === "addflag") pickParam(t.dataset.f);
+        else if (act === "more") setMoreOpen((s) => !s);
+        else if (act === "svc-toggle") setSvcOpen((s) => !s);
         else if (act === "copylog") copyLog();
         else if (act === "autoscroll") setAutoScroll((s) => !s);
         else if (act === "tree-collapse") setTreeCollapsed(true);
@@ -1339,9 +1776,11 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
         else if (act === "refresh") load();
         else if (act === "gpu-detect") doGpuDetect();
         else if (act === "bench") doBench(Number(t.dataset.port));
+        else if (act === "benchFullCtx") doBenchFullCtx(Number(t.dataset.port));
         else if (act === "fw-probe") doFwProbe(t.dataset.fw);
         else if (act === "fw-save") doFwSave(t.dataset.fw);
         else if (act === "register-toggle") setShowRegister((s) => !s);
+        else if (act === "fw-cfg-toggle") setShowFwCfg((s) => !s);
       }
       function onRootInput(ev) {
         const el = ev.target;
@@ -1350,13 +1789,12 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       function onRootChange(ev) {
         const el = ev.target;
         if (el && el.dataset && el.dataset.bool !== undefined) editBool(+el.dataset.bool, el.checked);
-        else if (el && el.dataset && el.dataset.act === "sel-fw") setSelFw((s) => ({ ...s, [el.dataset.cp]: ev.target.value }));
       }
 
       const v = profiles.find((p) => p.id === selId) || null;
       const g = v ? groupForVersion(v) || null : null;
       const run = v ? runMap.get(v.id) : undefined;
-      const dead = v ? KNOWN_DEAD[modelOf(v.name)] : undefined;
+      const dead = v ? (v.modelMissing ? "模型文件缺失(盘面上不存在)" : KNOWN_DEAD[modelOf(v.name)]) : undefined;
       const draft = draftRef.current;
       const baseV = (v && diffBase && g) ? g.versions.find((o) => o.id === diffBase) : null;
       const anyBusy = busy !== "";
@@ -1373,15 +1811,32 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       /* 启动/停止按钮(卡互斥 + 停止二次确认) */
       let startBtn = null;
       if (v && g) {
-        if (run) {
+        if (v.modelMissing) {
+          startBtn = e("button", { className: "mm-btn mm-btn--sm", disabled: true, title: "模型文件缺失(盘面上不存在,无法启动)" }, "文件缺失");
+        } else if (run) {
           const prot = PROTECTED_PORTS.indexOf(run.port) !== -1;
           startBtn = stopBtn(run.port, !!(run.server && run.server.managed), "stop", "停止 @" + run.port + ((run.server && !run.server.managed) ? "(fuser)" : "") + (prot ? " · DSH 在用" : ""));
-        } else if (v.gpu == null) {
-          startBtn = e("button", { className: "mm-btn mm-btn--sm", disabled: true, title: "双卡(1,0)托管启动暂不支持(P2)" }, "双卡启动 (P2)");
+        } else if (isDual(v.gpu)) {
+          const occ = running.find((s) => cardBusy(s, v.gpu));
+          if (occ) {
+            startBtn = e("button", { className: "mm-btn mm-btn--sm mm-btn--primary", disabled: anyBusy, "data-act": "takeover", title: "先停 " + (occ.model || "") + " @" + occ.port + ",再同端口启动本版本" }, "启动 · 接管 " + occ.port);
+          } else {
+            startBtn = e("button", { className: "mm-btn mm-btn--sm mm-btn--primary", disabled: anyBusy, "data-act": "start", title: "双卡 CUDA_VISIBLE_DEVICES=1,0 托管启动" }, "双卡启动 (1,0)");
+          }
         } else {
           const occ = running.find((s) => s.gpu === v.gpu);
           if (occ) {
-            startBtn = e("button", { className: "mm-btn mm-btn--sm mm-btn--primary", disabled: anyBusy, "data-act": "takeover" }, "启动 · 接管 " + occ.port);
+            /* 卡被占:同模型(同量化)→ 可第二端口双开;异模型 → 维持卡互斥只给接管 */
+            const sameModel = !!occ.model && !!v.model && occ.model === v.model;
+            const fp = sameModel ? nextFreePort(v.gpu, servers) : null;
+            if (fp) {
+              startBtn = e(React.Fragment, null,
+                e("button", { className: "mm-btn mm-btn--sm mm-btn--primary", disabled: anyBusy, "data-act": "start", "data-port": String(fp), title: "同卡双开:显存需装两份 " + (occ.model || "") }, "启动 · 双开 @" + fp),
+                e("button", { className: "mm-btn mm-btn--sm", disabled: anyBusy, "data-act": "takeover", title: "先停 " + (occ.model || "") + " @" + occ.port + ",再同端口启动本版本" }, "接管 @" + occ.port),
+              );
+            } else {
+              startBtn = e("button", { className: "mm-btn mm-btn--sm mm-btn--primary", disabled: anyBusy, "data-act": "takeover" }, "启动 · 接管 " + occ.port);
+            }
           } else {
             startBtn = e("button", { className: "mm-btn mm-btn--sm mm-btn--primary", disabled: anyBusy, "data-act": "start" }, "启动 (" + defaultPort(v.gpu) + ")");
           }
@@ -1391,8 +1846,29 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
       /* 一键测速(运行中才显示;结果落 benchmarks.json 并回显详情) */
       let benchBtn = null;
       if (v && run) {
-        benchBtn = e("button", { className: "mm-btn mm-btn--sm", disabled: busy === "bench:" + run.port, "data-act": "bench", "data-port": String(run.port) }, busy === "bench:" + run.port ? "测速中…" : "一键测速");
+        benchBtn = e(React.Fragment, null,
+          e("button", { className: "mm-btn mm-btn--sm", disabled: busy === "bench:" + run.port, "data-act": "bench", "data-port": String(run.port) }, busy === "bench:" + run.port ? "测速中…" : "一键测速"),
+          e("button", { className: "mm-btn mm-btn--sm", disabled: busy === "benchfc:" + run.port, "data-act": "benchFullCtx", "data-port": String(run.port) }, busy === "benchfc:" + run.port ? "热测速中…" : "满上下文热测速"),
+        );
       }
+
+      /* v7 splitter:拖拽调左栏宽(clamp 220..min(560, 主体宽 60%)),双击复位 320,持久化 localStorage(mm.paneW) */
+      function onSplitDown(ev) {
+        if (treeCollapsed) return;
+        dragRef.current = { x0: ev.clientX, w0: paneW };
+        if (ev.currentTarget.setPointerCapture) { try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (err) {} }
+        ev.preventDefault();
+      }
+      function onSplitMove(ev) {
+        const d = dragRef.current; if (!d || !bodyRef.current) return;
+        const rect = bodyRef.current.getBoundingClientRect();
+        const maxW = Math.min(560, Math.floor(rect.width * 0.6));
+        const w = Math.max(220, Math.min(maxW, Math.round(d.w0 + (ev.clientX - d.x0))));
+        setPaneW(w);
+        try { localStorage.setItem("mm.paneW", String(w)); } catch (err) {}
+      }
+      function onSplitUp() { dragRef.current = null; }
+      function resetPaneW() { setPaneW(320); try { localStorage.setItem("mm.paneW", "320"); } catch (err) {} }
 
       function serverChip(s) {
         const isRun = s.status === "running";
@@ -1414,7 +1890,7 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
           e("div", { className: "mm-headRow" },
             e("span", { className: "mm-title" }, "本地模型管理"),
             e("span", { className: "mm-pill mm-pill--ok" }, e("span", { className: "mm-dot mm-dot--on" }), e("b", null, running.length), " 运行中"),
-            e("span", { className: "mm-pill" }, e("b", null, groups.length), " 模型 · ", e("b", null, profiles.length), " 参数版本"),
+            e("span", { className: "mm-pill" }, e("b", null, models.length), " 模型 · ", e("b", null, profiles.length), " 参数版本"),
             gpuCardList().map((c) => {
               const occ = running.find((s) => s.gpu === c.index);
               const prot = occ && PROTECTED_PORTS.indexOf(occ.port) !== -1;
@@ -1428,19 +1904,23 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
             e("button", { className: "mm-btn mm-btn--sm", disabled: anyBusy, "data-act": "refresh" }, "刷新"),
             e("button", { className: "mm-btn mm-btn--sm mm-btn--primary", "data-act": "drawer" }, "健康检查"),
           ),
-          e("div", { className: "mm-meta" }, "30s 自动刷新 · 卡互斥(一张卡一个模型)· 参数按框架官方顺序 · 说明=中文(悬停看英文)· 推荐值=该模型激活版本实测" + gpuMetaLine(gpuInfo)),
+          e("div", { className: "mm-meta" }, "30s 自动刷新 · 卡互斥(一张卡一个模型,同模型可双开另一端口)· 参数 9 组固定序(兄弟量化行位对齐)· 说明=中文(悬停看英文)· 推荐值=同量化→同模型→官方最佳实践" + gpuMetaLine(gpuInfo)),
         ),
         flashMsg ? e("div", { className: "mm-flash" + (flashMsg.kind === "err" ? " mm-flash--err" : "") }, flashMsg.text) : null,
-        /* 服务注册表 */
+        /* 服务注册表(v7:默认折叠成一行摘要,▸ 展开 chips;toggle 按钮恒在右端) */
         e("div", { className: "mm-extStrip" },
           e("span", { className: "mm-kicker" }, "服务注册表"),
-          servers.length ? servers.map(serverChip) : e("span", { className: "mm-meta" }, "暂无已登记服务"),
+          e("span", { className: "mm-svcToggle", "data-act": "svc-toggle", title: svcOpen ? "折叠服务列表" : "展开全部服务" }, svcOpen ? "▾" : "▸"),
+          svcOpen
+            ? (servers.length ? servers.map(serverChip) : e("span", { className: "mm-meta" }, "暂无已登记服务"))
+            : e("span", { className: "mm-meta" }, running.length ? running.map((s) => (s.model || "未署名") + " @" + s.port).join("  ·  ") : (servers.length ? "已登记 " + servers.length + " 项(当前全部离线)" : "暂无已登记服务")),
           e("div", { className: "mm-spacer" }),
           e("button", { className: "mm-btn mm-btn--sm", "data-act": "register-toggle" }, showRegister ? "收起" : "+ 登记服务"),
+          e("button", { className: "mm-btn mm-btn--sm", "data-act": "fw-cfg-toggle" }, showFwCfg ? "收起框架路径" : "+ 框架路径"),
         ),
         showRegister ? e(RegisterForm, { busy: busy === "register", onSubmit: doRegister, onCancel: () => setShowRegister(false), gpus: gpuCardList() }) : null,
-        /* 框架路径配置(llama.cpp=可执行文件;SGLang/vLLM=venv 内 python) */
-        e("div", { className: "mm-extStrip" },
+        /* 框架路径配置(llama.cpp=可执行文件;SGLang/vLLM=venv 内 python)——平时用不到,默认收起,服务注册表行「+ 框架路径」展开 */
+        showFwCfg ? e("div", { className: "mm-extStrip" },
           e("span", { className: "mm-kicker" }, "框架路径"),
           frameworks ? Object.keys(FRAMEWORKS).map((fw) => {
             const cur = (frameworks.frameworks[fw] || {}).exe || "";
@@ -1453,62 +1933,74 @@ function recMismatch(cat,cur,rec){if(rec==null)return false;if(cat&&cat.t==="boo
               e("span", { className: "mm-fwProbe " + (pv ? (pv.ok ? "mm-fOk" : pv.ok === false ? "mm-fBad" : "mm-meta") : "mm-meta") }, pv ? (pv.ok ? "✓ " : "✗ ") + pv.line : ""),
             );
           }) : (fwReady ? e("span", { className: "mm-meta" }, "加载框架配置…") : e("span", { className: "mm-meta" }, "框架配置端点未生效——你手动重启一次 dsh 后可用")),
-        ),
-        /* 主体:左树 · 右详情 */
-        e("div", { className: "mm-body" + (treeCollapsed ? " mm-body--collapsed" : "") },
+        ) : null,
+        /* 主体:左树 · splitter(可拖宽)· 右详情(折叠态不写内联 grid,让 .mm-body--collapsed 生效) */
+        e("div", { ref: bodyRef, className: "mm-body" + (treeCollapsed ? " mm-body--collapsed" : ""), style: treeCollapsed ? null : { gridTemplateColumns: paneW + "px 5px 1fr" } },
           e("div", { className: "mm-paneL" },
             treeCollapsed
-              ? e("button", { className: "mm-btn mm-treeExpand", "data-act": "tree-expand", title: "展开「模型 · 参数版本」列表" }, "≡ 版本")
+              ? null
               : (
                 e("div", { className: "mm-paneLInner" },
                   e("div", { className: "mm-kickerRow" },
-                    e("span", { className: "mm-kicker" }, "模型 · 参数版本"),
+                    e("span", { className: "mm-kicker" }, "模型 · 量化 · 版本"),
                     e("div", { className: "mm-spacer" }),
                     e("button", { className: "mm-btn mm-btn--sm", "data-act": "tree-collapse", title: "收起侧栏" }, "⟨")),
-                  e("input", { className: "mm-search", type: "text", placeholder: "搜索(模型 / 路径 / 框架)…", value: treeQ, onChange: (ev) => setTreeQ(ev.target.value) }),
-                  e("div", { dangerouslySetInnerHTML: { __html: treeHtml(groups, selId, runMap, treeQ, selFw) } }))),
+                  cardTabs.length ? e("div", { className: "mm-cardTabs" },
+                    e("span", { className: "mm-ctab" + (cardFilter === "all" ? " mm-ctab--active" : ""), "data-act": "cardtab", "data-card": "all" }, "全部"),
+                    cardTabs.map((c) => e("span", { key: c.val, className: "mm-ctab" + (cardFilter === c.val ? " mm-ctab--active" : ""), "data-act": "cardtab", "data-card": c.val }, c.label))) : null,
+                  e("input", { className: "mm-search", type: "text", placeholder: "搜索(模型 / 量化 / 框架 / 卡)…", value: treeQ, onChange: (ev) => setTreeQ(ev.target.value) }),
+                  e("div", { dangerouslySetInnerHTML: { __html: treeHtml(models, selId, runMap, treeQ, cardFilter, openSet, benchMap) } }))),
           ),
+          treeCollapsed ? null : e("div", { className: "mm-splitter", title: "拖动调整侧栏宽度 · 双击复位 320", onPointerDown: onSplitDown, onPointerMove: onSplitMove, onPointerUp: onSplitUp, onPointerCancel: onSplitUp, onDoubleClick: resetPaneW }, null),
           e("div", { className: "mm-paneR" },
             !v || !g
-              ? e("div", { className: "mm-loading" }, "在左侧选择一个参数版本…")
+              ? e("div", { className: "mm-loading" },
+                treeCollapsed ? e("button", { className: "mm-btn mm-btn--sm", "data-act": "tree-expand", title: "展开「模型 · 参数版本」列表" }, "≡ 版本") : null,
+                "在左侧选择一个参数版本…")
               : e("div", { key: v.id + ":" + tick },
                 e("div", { className: "mm-vHead" },
-                  e("span", { className: "mm-vTitle" }, v.name),
-                  e("span", { className: "mm-meta" }, shortPath(v.modelPath || "")),
+                  treeCollapsed ? e("button", { className: "mm-btn mm-btn--sm", "data-act": "tree-expand", title: "展开「模型 · 量化 · 版本」列表" }, "≡ 版本") : null,
+                  e("span", { className: "mm-vTitle" }, v.__base || modelOf(v.name)),
+                  e("span", { className: "mm-vSub" }, "· " + (g ? g.fwLabel : v.framework) + " · " + (v.__qname || "默认") + " · " + gpuLabel(v.gpu)),
                   v.active ? e("span", { className: "mm-pill mm-mini" }, "激活") : null,
                   run ? e("span", { className: "mm-pill mm-pill--ok mm-mini" }, "● 运行中 @" + run.port + (run.ext ? " · 外部" : "")) : null,
-                  dead ? e("span", { className: "mm-pill mm-pill--fail mm-mini" }, g.fw === "vllm" ? "⚠ vLLM 不可用" : "✗ 不可行") : null,
+                  dead ? e("span", { className: "mm-pill mm-pill--fail mm-mini" }, v.modelMissing ? "✗ 文件缺失" : g.fw === "vllm" ? "⚠ vLLM 不可用" : "✗ 不可行") : null,
                   e("span", { id: "mmDirtyPill", className: "mm-pill mm-pill--warn mm-mini", style: { display: dirtyRef.current ? "inline-flex" : "none" } }, "● 未保存"),
                   e("div", { className: "mm-spacer" }),
+                  e("span", { className: "mm-meta" }, shortPath(v.modelPath || "")),
+                ),
+                /* v7:meta 行上收进 vHead(紧贴标题),不再是独立中部条 */
+                e("div", { className: "mm-metaStrip", dangerouslySetInnerHTML: { __html: metaStripHtml(g, v, benchmarks, run) } }),
+                /* v7 三级动作:一级 启动/停止(startBtn) · 二级 测速×2(benchBtn) · 三级 保存/另存/对比/删除 收进「⋯」 */
+                e("div", { className: "mm-vActions" },
                   startBtn,
                   benchBtn,
-                  e("button", { id: "mmBtnSave", className: "mm-btn mm-btn--sm", disabled: !dirtyRef.current || anyBusy, "data-act": "save" }, "保存"),
-                  e("button", { className: "mm-btn mm-btn--sm mm-btn--primary", disabled: anyBusy, "data-act": "saveas" }, "另存为版本"),
-                  g.versions.length > 1 ? e("select", { className: "mm-sel", value: diffBase || "", onChange: (ev) => setDiffBase(ev.target.value || null) },
-                    e("option", { value: "" }, "对比…"),
-                    g.versions.filter((o) => o.id !== v.id).map((o) => e("option", { key: o.id, value: o.id }, "对比 " + modelOf(o.name) + "(基线)"))) : null,
-                  e("button", { className: "mm-btn mm-btn--sm mm-btn--danger", disabled: anyBusy, "data-act": "delete" }, "删除"),
+                  e("div", { className: "mm-moreWrap" },
+                    e("button", { className: "mm-btn mm-btn--sm", "data-act": "more", "aria-expanded": moreOpen ? "true" : "false", disabled: anyBusy, title: "保存 / 另存为 / 对比基线 / 删除" }, "⋯ 更多"),
+                    moreOpen ? e("div", { className: "mm-moreMenu", role: "menu" },
+                      e("button", { role: "menuitem", id: "mmBtnSave", className: "mm-btn mm-btn--sm", disabled: !dirtyRef.current || anyBusy, "data-act": "save" }, dirtyRef.current ? "● 保存" : "保存"),
+                      e("button", { role: "menuitem", className: "mm-btn mm-btn--sm", disabled: anyBusy, "data-act": "saveas" }, "另存为版本"),
+                      g.versions.length > 1 ? e("select", { className: "mm-sel mm-menuSel", value: diffBase || "", onChange: (ev) => { setDiffBase(ev.target.value || null); setMoreOpen(false); } },
+                        e("option", { value: "" }, "对比基线…"),
+                        g.versions.filter((o) => o.id !== v.id).map((o) => e("option", { key: o.id, value: o.id }, "对比 " + modelOf(o.name) + "(基线)"))) : null,
+                      e("button", { role: "menuitem", className: "mm-btn mm-btn--sm mm-btn--danger", disabled: anyBusy, "data-act": "delete" }, "删除版本"),
+                    ) : null,
+                  ),
                 ),
-                e("div", { className: "mm-metaStrip", dangerouslySetInnerHTML: { __html: metaStripHtml(g, v, benchmarks, run) } }),
                 baseV
                   ? e("div", { dangerouslySetInnerHTML: { __html: diffHtml(g, v, baseV, draft) } })
-                  : e("div", { dangerouslySetInnerHTML: { __html: paramsTableHtml(g, v, draft) } }),
+                  : e("div", { dangerouslySetInnerHTML: { __html: paramsTableHtml(g, v, draft, sibVersions) } }),
                 pickerOpen
                   ? e("div", { className: "mm-picker" },
                     e("input", { type: "text", placeholder: "搜索参数(中文/英文,如 speculative / cache / top-k)…", value: pickerQ, onChange: (ev) => setPickerQ(ev.target.value) }),
-                    e("div", { dangerouslySetInnerHTML: { __html: pickerHtml(g, v, draft, pickerQ) } }))
-                  : e("div", { className: "mm-pAdd", "data-act": "openpicker" }, "＋ 从官方目录添加参数(按框架顺序插入,带候选/默认值)"),
+                    e("div", { dangerouslySetInnerHTML: { __html: pickerHtml(g, v, draft, pickerQ, sibVersions) } }))
+                  : e("div", { className: "mm-pAdd", "data-act": "openpicker" }, "＋ 从官方目录添加参数(按 9 组固定序插入,带候选/默认/推荐)"),
+                e("div", { dangerouslySetInnerHTML: { __html: compareTableHtml(v, models, benchMap) } }),
                 e("div", { dangerouslySetInnerHTML: { __html: tailHtml(g, v, run, logState, dead, draft, benchmarks, autoScroll) } }),
               ),
           ),
         ),
-        /* 统一端点规划 */
-        e("div", { className: "mm-unified" },
-          e("span", { className: "mm-tag" }, "统一端点 · P3 规划"),
-          e("span", null, "一个端口跑所有模型:"),
-          e("code", null, "http://127.0.0.1:11435/v1"),
-          e("span", { className: "mm-routes" }, "按 body.model 路由 · 流式字节透传 · 切模型自动接管占用的卡"),
-        ),
+        /* v7:P3 统一端点横幅已移除 → 挂载一次性 flash(见 flash 定义处) */
         /* 健康检查抽屉 */
         e("div", { className: "mm-drawer" + (drawer ? " mm-drawer--open" : "") },
           e("div", { className: "mm-drawerHead" }, "健康检查", e("span", { className: "mm-meta" }, "客户端校验 + 服务健康(纯派生,不依赖新路由)")),

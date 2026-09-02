@@ -29,10 +29,10 @@ pnpm add github:Ansonfishing/dsh-model-manager
 ## 功能
 
 - **服务注册表**——登记本地推理服务(端口、框架、模型、GPU),健康检查实时显示,一键停止。
-- **参数 Profile**——每个「模型 × 框架 × GPU」组合的命名参数版本(llama.cpp / SGLang / vLLM),按框架官方参数顺序渲染,推荐值对照 + 差异高亮。
+- **参数 Profile**——每个「模型 × 框架 × GPU」组合的命名参数版本(llama.cpp / SGLang / vLLM)。参数表按 9 个逻辑组固定排序(模型→上下文→KV→投机解码→采样→性能→并行→服务→其他);同模型×同框架的不同量化按参数并集展示、行位对齐,本版本未设的参数以灰行标注「其他量化:值」,量化间差异一眼可见。推荐值走「同量化实跑值 → 同模型兄弟量化 → 官方最佳实践」三级溯源链,每格标注来源,无依据不臆造。
 - **GPU 检测**——自动枚举显卡(`libcuda` 主源,`nvidia-smi` 回退);卡编号 = `CUDA_VISIBLE_DEVICES` 值。
 - **显存校验**——保存 Profile 时按 `-c` / `-np` 估算 KV 占用,超出目标卡容量立刻 warning。
-- **一键测速**——对已运行服务发固定 prompt(非流式 256 token),记录 tok/s。
+- **一键测速**——对已运行服务发固定 prompt(非流式 256 token),记录 tok/s;另有满上下文热测速(先校验实际可用上下文 ≥ 目标,再流式 warmup + 测量,记 TTFB / prefill / decode)。
 - **安全红线**——绝不 `pkill`;停止外部服务需显式 force + 面板两次点击二次确认;11437(DSH 自身推理端口)停止时额外提示「将中断当前会话」。
 
 ## 不用装 DSH,先看看面板?
@@ -74,7 +74,7 @@ node build/build-client.cjs       # 从 mockup-v3.html 重新构建 lib/client.j
 
 | 层 | 文件 | 职责 |
 |---|---|---|
-| 入口 | `index.js` | 注册 13 个工具 + 16 个同源路由 |
+| 入口 | `index.js` | 注册 14 个工具 + 17 个同源路由 |
 | 生命周期 | `lib/lifecycle.js` | 注册表 CRUD、健康探测、托管启动/停止 |
 | 安全 | `lib/safety.js` | 停止策略(fuser/kill)、保护端口 |
 | 校验 | `lib/validate.js` | launchCommand 解析 + 规则引擎 |
