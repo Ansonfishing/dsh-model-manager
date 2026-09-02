@@ -2,7 +2,7 @@
 // 全部注入 fake fetch/spawn/exec——不碰真实进程与真实端口
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createManager } from "../lib/lifecycle.js";
@@ -18,6 +18,7 @@ function makeManager(overrides = {}) {
     execFn: overrides.execFn ?? (async (argv) => { executed.push(argv); }),
     spawnFn: overrides.spawnFn ?? ((exe, args, opts) => { spawned.push({ exe, args, opts }); return { pid: ++nextPid, unref() {} }; }),
     pidAlive: overrides.pidAlive ?? (() => false),
+    logFn: overrides.logFn,
   });
   return { m, home, executed, spawned, cleanup: () => rmSync(home, { recursive: true, force: true }) };
 }
@@ -281,4 +282,240 @@ test("start: 托管记录 pid 仍活着 → 拒绝(防双开)", (t) => {
   assert.equal(first.pid, 7001);
   assert.throws(() => m.start({ profile: "c", port: 11436 }), /占用|in use/i);
   assert.equal(spawned.length, 1);
+});
+
+/* ---------------- benchFullCtx(满上下文热测速) ----------------
+ * 口径:满上下文校验(sglang=/get_server_info.max_total_tokens、llama=/slots n_ctx per-slot、
+ * vllm=servers/<port>.log 里 "GPU KV cache size: N tokens")+ 1 次流式 warmup(丢弃)+ 1 次流式测量。
+ * 记录 scheme='full-ctx-warm-v2':ttfbMs/prefillTps/decode tps、warm=true、ctxAllocated/fullCtx。
+ */
+const TC = 262144;
+function sseStream(n = 4, delayMs = 4) {
+  const enc = new TextEncoder();
+  return new ReadableStream({
+    async start(controller) {
+      for (let i = 0; i < n; i++) {
+        if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+        controller.enqueue(enc.encode('data: {"choices":[{"delta":{"content":"x"}}]}\n\n'));
+      }
+      controller.enqueue(enc.encode(
+        'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":' + n + '}}\n\n' +
+        'data: [DONE]\n\n',
+      ));
+      controller.close();
+    },
+  });
+}
+
+function mmFetch({ maxTotal = TC, slotsCtx = null, http500 = false } = {}) {
+  const calls = [];
+  const streaming = [];
+  const fn = async (url) => {
+    const u = String(url);
+    calls.push(u);
+    if (u.includes("/v1/models")) return { ok: true, status: 200, json: async () => ({ data: [{ id: "mock-model" }] }) };
+    if (u.includes("/get_server_info")) return { ok: true, status: 200, json: async () => ({ max_total_tokens: maxTotal }) };
+    if (u.includes("/slots")) return { ok: true, status: 200, json: async () => (slotsCtx != null ? [{ n_ctx: slotsCtx }] : []) };
+    if (u.includes("/v1/chat/completions")) {
+      streaming.push(1);
+      if (http500) return { ok: false, status: 500, text: async () => "boom" };
+      return { ok: true, status: 200, json: async () => { throw new Error("stream: no json"); }, body: sseStream(4) };
+    }
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  return { fn, calls, streaming };
+}
+
+test("benchFullCtx: sglang 满上下文 → 2 次流式(warmup+测量),entry 字段完整并落盘", async (t) => {
+  const fx = mmFetch();
+  const { m, cleanup } = makeManager({ fetchFn: fx.fn }); t.after(cleanup);
+  m.register({ port: 11450, framework: "sglang", model: "Demo-27B" });
+  const r = await m.benchFullCtx(11450, { profile: "sg-fc", ctxTarget: TC, maxTokens: 16 });
+  assert.equal(fx.streaming.length, 2); // warmup + 测量,单并发串行
+  assert.equal(r.scheme, "full-ctx-warm-v2");
+  assert.equal(r.warm, true);
+  assert.equal(r.fullCtx, true);
+  assert.equal(r.ctxAllocated, TC);
+  assert.equal(r.ctxTarget, TC);
+  assert.equal(r.tokens, 4);
+  assert.ok(Number.isInteger(r.ttfbMs) && r.ttfbMs >= 0);
+  assert.ok(Number.isInteger(r.prefillTps) && r.prefillTps > 0);
+  assert.ok(r.tps > 0);
+  const saved = m.listBenchmarks().find((b) => b.scheme === "full-ctx-warm-v2");
+  assert.ok(saved, "benchmarks.json 应有 full-ctx-warm-v2 记录");
+  assert.equal(saved.profile, "sg-fc");
+});
+
+test("benchFullCtx: 实际上下文 < 目标 → 拒绝,不发测速请求、不落盘", async (t) => {
+  const fx = mmFetch({ maxTotal: 131072 });
+  const { m, cleanup } = makeManager({ fetchFn: fx.fn }); t.after(cleanup);
+  m.register({ port: 11450, framework: "sglang", model: "Demo-27B" });
+  await assert.rejects(
+    () => m.benchFullCtx(11450, { ctxTarget: TC }),
+    /满上下文|full-ctx|not met/i,
+  );
+  assert.equal(fx.streaming.length, 0);
+  assert.equal(m.listBenchmarks().length, 0);
+});
+
+test("benchFullCtx: llama 走 /slots per-slot n_ctx 校验", async (t) => {
+  const fx = mmFetch({ slotsCtx: TC });
+  const { m, cleanup } = makeManager({ fetchFn: fx.fn }); t.after(cleanup);
+  m.register({ port: 11451, framework: "llama", model: "Demo-27B" });
+  const r = await m.benchFullCtx(11451, { ctxTarget: TC });
+  assert.ok(fx.calls.some((u) => u.includes("/slots")));
+  assert.equal(r.fullCtx, true);
+  assert.equal(r.ctxAllocated, TC);
+  assert.equal(fx.streaming.length, 2);
+});
+
+test("benchFullCtx: vllm 走 servers/<port>.log 的 GPU KV cache size 校验;不足则拒", async (t) => {
+  const fx = mmFetch();
+  const { m, cleanup } = makeManager({
+    fetchFn: fx.fn,
+    logFn: (port) => `... GPU KV cache size: 262144 tokens, block size 16 ...\n`,
+  }); t.after(cleanup);
+  m.register({ port: 11452, framework: "vllm", model: "Demo-27B" });
+  const r = await m.benchFullCtx(11452, { ctxTarget: TC });
+  assert.equal(r.fullCtx, true);
+  assert.equal(r.ctxAllocated, TC);
+
+  const fx2 = mmFetch();
+  const { m: m2, cleanup: c2 } = makeManager({
+    fetchFn: fx2.fn,
+    logFn: (port) => `... GPU KV cache size: 131072 tokens, block size 16 ...\n`,
+  }); c2();
+  m2.register({ port: 11453, framework: "vllm", model: "Demo-27B" });
+  await assert.rejects(() => m2.benchFullCtx(11453, { ctxTarget: TC }), /满上下文|full-ctx|not met/i);
+  assert.equal(fx2.streaming.length, 0);
+});
+
+test("benchFullCtx: 流式 http 500 → 抛错不落盘", async (t) => {
+  const fx = mmFetch({ http500: true });
+  const { m, cleanup } = makeManager({ fetchFn: fx.fn }); t.after(cleanup);
+  m.register({ port: 11454, framework: "sglang", model: "Demo-27B" });
+  await assert.rejects(() => m.benchFullCtx(11454, { ctxTarget: TC }), /测速失败|request failed|500/i);
+  assert.equal(m.listBenchmarks().length, 0);
+});
+
+test("benchFullCtx 默认 fetch 路径:测速请求必须是 POST+JSON(回归:fetchImpl 丢 options 导致 GET→llama 404/sglang 405)", async (t) => {
+  const realFetch = globalThis.fetch;
+  const chatOpts = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    if (u.includes("/v1/chat/completions")) {
+      chatOpts.push(opts);
+      return { ok: true, status: 200, body: sseStream(4), text: async () => "" };
+    }
+    if (u.includes("/v1/models")) return { ok: true, status: 200, json: async () => ({ data: [{ id: "mock-model" }] }) };
+    if (u.includes("/slots")) return { ok: true, status: 200, json: async () => [{ n_ctx: TC }] };
+    if (u.includes("/get_server_info")) return { ok: true, status: 200, json: async () => ({ max_total_tokens: TC }) };
+    return { ok: false, status: 404, json: async () => ({}), text: async () => "nf" };
+  };
+  const home = mkdtempSync(join(tmpdir(), "mm-life-deflt-"));
+  t.after(() => { globalThis.fetch = realFetch; rmSync(home, { recursive: true, force: true }); });
+  // 直接用 createManager(不经过 makeManager 的默认 fetchFn 兜底)→ 真实走默认 fetch 路径
+  const m = createManager({ home });
+  m.register({ port: 11455, framework: "llama", model: "Demo-4B" });
+  const r = await m.benchFullCtx(11455, { profile: "fc-default-fetch", ctxTarget: TC, maxTokens: 16 });
+  assert.equal(r.scheme, "full-ctx-warm-v2");
+  assert.equal(chatOpts.length, 2); // warmup + 测量
+  for (const o of chatOpts) {
+    assert.equal(o.method, "POST", "测速请求必须显式 POST(默认 fetchImpl 曾把 options 丢弃→发出 GET)");
+    assert.ok(o.body && String(o.body).includes('"stream":true'), "测速请求必须带 JSON 流式 body");
+  }
+});
+
+test("benchFullCtx: 流式无 usage → 请求带 stream_options.include_usage,且非流式回退拿到 prompt_tokens", async (t) => {
+  const sseNoUsage = (n) => new ReadableStream({
+    async start(c) {
+      const enc = new TextEncoder();
+      await new Promise((r) => setTimeout(r, 20)); // 模拟真实首块延迟,保证 ttfb>0 可算 prefillTps
+      for (let i = 0; i < n; i++) c.enqueue(enc.encode('data: {"choices":[{"delta":{"content":"x"}}]}\n\n'));
+      c.enqueue(enc.encode('data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'));
+      c.close();
+    },
+  });
+  let fallback = 0;
+  const fn = async (url, opts = {}) => {
+    const u = String(url);
+    if (u.includes("/v1/chat/completions")) {
+      const body = JSON.parse(String(opts.body));
+      if (body.stream === false) {
+        fallback++;
+        return { ok: true, status: 200, json: async () => ({ usage: { prompt_tokens: 42 } }) };
+      }
+      return { ok: true, status: 200, body: sseNoUsage(4), text: async () => "" };
+    }
+    if (u.includes("/v1/models")) return { ok: true, status: 200, json: async () => ({ data: [{ id: "m" }] }) };
+    if (u.includes("/get_server_info")) return { ok: true, status: 200, json: async () => ({ max_total_tokens: TC }) };
+    if (u.includes("/slots")) return { ok: true, status: 200, json: async () => [{ n_ctx: TC }] };
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  const { m, cleanup } = makeManager({ fetchFn: fn }); t.after(cleanup);
+  m.register({ port: 11460, framework: "sglang", model: "Demo-27B" });
+  const r = await m.benchFullCtx(11460, { profile: "fc-usage-fallback", ctxTarget: TC, maxTokens: 16 });
+  assert.equal(r.promptTokens, 42, "流式无 usage 时必须经非流式回退取到 prompt_tokens");
+  assert.ok(r.prefillTps > 0, "prefillTps 必须有值(=prompt_tokens/ttfb)");
+  assert.ok(fallback >= 1, "回退探测必须发生");
+});
+
+test("benchFullCtx: sglang 新字段 max_total_num_tokens 识别为实际 KV", async (t) => {
+  const fn = async (url) => {
+    const u = String(url);
+    if (u.includes("/v1/models")) return { ok: true, status: 200, json: async () => ({ data: [{ id: "m" }] }) };
+    if (u.includes("/get_server_info")) return { ok: true, status: 200, json: async () => ({ max_total_num_tokens: TC }) };
+    if (u.includes("/slots")) return { ok: true, status: 200, json: async () => [{ n_ctx: TC }] };
+    if (u.includes("/v1/chat/completions")) return { ok: true, status: 200, body: sseStream(4), text: async () => "" };
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  const { m, cleanup } = makeManager({ fetchFn: fn }); t.after(cleanup);
+  m.register({ port: 11461, framework: "sglang", model: "Demo-35B" });
+  const r = await m.benchFullCtx(11461, { profile: "fc-num-tokens", ctxTarget: TC, maxTokens: 16 });
+  assert.equal(r.ctxAllocated, TC, "max_total_num_tokens 必须被识别为实际分配 KV");
+  assert.equal(r.fullCtx, true);
+});
+
+test("benchFullCtx: profile.framework 优先于 stale 注册表条目(回归:11436 留 vllm 死条目曾让 sglang 测速读到 vllm 旧日志 KV=1692759)", async (t) => {
+  const fn = async (url) => {
+    const u = String(url);
+    if (u.includes("/v1/models")) return { ok: true, status: 200, json: async () => ({ data: [{ id: "m" }] }) };
+    if (u.includes("/get_server_info")) return { ok: true, status: 200, json: async () => ({ max_total_num_tokens: TC }) };
+    if (u.includes("/v1/chat/completions")) return { ok: true, status: 200, body: sseStream(4), text: async () => "" };
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  const { m, home, cleanup } = makeManager({ fetchFn: fn }); t.after(cleanup);
+  writeFileSync(join(home, "profiles.json"), JSON.stringify([{ name: "stale-reg-sg", framework: "sglang", modelPath: "/fake/model" }]));
+  // 注册表留一个 stale 条目 framework=vllm(上一轮死进程未清理)
+  m.register({ port: 11463, framework: "vllm", model: "Stale-27B" });
+  // vllm 日志写入小 KV:代码若误走 vllm 分支会读成 100 < TC → 抛未达满上下文(红)
+  mkdirSync(join(home, "servers"), { recursive: true });
+  writeFileSync(join(home, "servers", "11463.log"), "GPU KV cache size: 100 tokens\n");
+  const r = await m.benchFullCtx(11463, { profile: "stale-reg-sg", ctxTarget: TC, maxTokens: 16 });
+  assert.equal(r.ctxAllocated, TC, "必须走 sglang 分支(/get_server_info),不得读 stale vllm 日志");
+  assert.equal(r.fullCtx, true);
+});
+
+test("benchFullCtx: reasoning_content 纯思考流也计 token(35B-A3B 256 全 reasoning 案例)", async (t) => {
+  const sseReasoning = (n) => new ReadableStream({
+    async start(c) {
+      const enc = new TextEncoder();
+      await new Promise((r) => setTimeout(r, 20));
+      for (let i = 0; i < n; i++) c.enqueue(enc.encode('data: {"choices":[{"delta":{"content":"","reasoning_content":"think"}}]}\n\n'));
+      c.enqueue(enc.encode('data: {"choices":[{"delta":{},"finish_reason":"length"}],"usage":{"prompt_tokens":25,"completion_tokens":' + n + '}}\n\ndata: [DONE]\n\n'));
+      c.close();
+    },
+  });
+  const fn = async (url) => {
+    const u = String(url);
+    if (u.includes("/v1/models")) return { ok: true, status: 200, json: async () => ({ data: [{ id: "m" }] }) };
+    if (u.includes("/get_server_info")) return { ok: true, status: 200, json: async () => ({ max_total_num_tokens: TC }) };
+    if (u.includes("/v1/chat/completions")) return { ok: true, status: 200, body: sseReasoning(4), text: async () => "" };
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  const { m, cleanup } = makeManager({ fetchFn: fn }); t.after(cleanup);
+  m.register({ port: 11462, framework: "sglang", model: "Demo-35B" });
+  const r = await m.benchFullCtx(11462, { profile: "fc-reasoning", ctxTarget: TC, maxTokens: 16 });
+  assert.equal(r.tokens, 4, "reasoning_content token 必须计入 tokens");
+  assert.ok(r.tps > 0, "纯思考流也必须能计速");
 });

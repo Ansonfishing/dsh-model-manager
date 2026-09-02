@@ -186,7 +186,7 @@ export function apply(ctx) {
       description:
         "把一个已在本机运行的推理服务(llama.cpp / vLLM / SGLang)登记进模型管理器。" +
         "参数:port(必填)、framework(llama|vllm|sglang,必填)、model(模型显示名)、gpu(CUDA_VISIBLE_DEVICES 值;" +
-        "取值为 CUDA 设备序号 0/1/…,以面板「获取显卡」检测的实际落卡为准)、note(备注)。" +
+        "取值为 CUDA 设备序号 0/1/…,双卡传 \"1,0\" 字符串,以面板「获取显卡」检测的实际落卡为准)、note(备注)。" +
         "只登记不启动;健康状态用 mm_server_list 查看。",
       parameters: {
         type: "object",
@@ -194,7 +194,7 @@ export function apply(ctx) {
           port: { type: "number", description: "服务端口(1–65535)" },
           framework: { type: "string", enum: ["llama", "vllm", "sglang"] },
           model: { type: "string", description: "模型显示名" },
-          gpu: { type: "number", description: "CUDA_VISIBLE_DEVICES 值" },
+          gpu: { type: ["number", "string"], description: "CUDA_VISIBLE_DEVICES 值(0/1/…,双卡 \"1,0\")" },
           note: { type: "string", description: "备注" },
         },
         required: ["port", "framework"],
@@ -256,16 +256,17 @@ export function apply(ctx) {
     makeTool({
       name: "mm_server_start",
       description:
-        "按参数 profile 托管启动推理服务。支持 llama.cpp / SGLang / vLLM 三类 profile(exe 走 frameworks.json 配置链)。" +
-        "gpu 缺省取 profile.gpu,再缺省 0。启动后写 pid 文件并登记为托管服务;端口已被注册表占用则拒绝。",
+        "按参数 profile 托管启动推理服务。支持 llama.cpp / SGLang / vLLM 三类 profile(exe 走 frameworks.json 配置链," +
+        "profile.exePath 可覆盖)。gpu 缺省取 profile.gpu,再缺省 0;双卡传 null 或 \"1,0\" 字符串。" +
+        "启动后写 pid 文件并登记为托管服务;端口已被注册表占用则拒绝。",
       parameters: {
         type: "object",
         properties: {
           profile: { type: "string", description: "profile 名称或 id" },
           port: { type: "number", description: "启动端口" },
           gpu: {
-            type: "number",
-            description: "CUDA_VISIBLE_DEVICES 值;缺省取 profile.gpu",
+            type: ["number", "string", "null"],
+            description: "CUDA_VISIBLE_DEVICES 值(0/1/…,双卡 \"1,0\" 或 null);缺省取 profile.gpu",
           },
         },
         required: ["profile", "port"],
@@ -290,7 +291,14 @@ export function apply(ctx) {
         description: "启动参数字符串(llama 的 -m/--port 等托管参数禁止写入)",
       },
       contextWindow: { type: "number", description: "模型原生最大上下文" },
-      gpu: { type: "number" },
+      gpu: {
+        type: ["number", "string", "null"],
+        description: "CUDA_VISIBLE_DEVICES 值(0/1/…,双卡 \"1,0\" 或 null)",
+      },
+      exePath: {
+        type: "string",
+        description: "可执行文件路径,覆盖 frameworks.json 全局配置(如 Flash-Next 需 PR 版 llama-server)",
+      },
       port: { type: "number", description: "可选:固定端口,保存时做占用校验" },
       kvBytesPerToken: {
         type: "number",
@@ -494,6 +502,33 @@ export function apply(ctx) {
     }),
   );
 
+  // ---------- 满上下文热测速(2) ----------
+  tools.register(
+    makeTool({
+      name: "mm_bench_fullctx",
+      description:
+        "对已登记端口跑满上下文热测速(单并发、热启动):先校验实际可用上下文 ≥ ctxTarget(sglang=/get_server_info、llama=/slots、vllm=托管日志 KV 行),再流式 warmup 1 次 + 测量 1 次,记 TTFB/prefill/decode 并落盘 benchmarks.json(scheme=full-ctx-warm-v2)。",
+      parameters: {
+        type: "object",
+        properties: {
+          port: { type: "number", description: "已登记的推理服务端口" },
+          profile: { type: "string", description: "可选,关联的 profile 名" },
+          ctxTarget: { type: "number", description: "满上下文目标,默认 262144" },
+          maxTokens: { type: "number", description: "生成长度,默认 256" },
+        },
+        required: ["port"],
+      },
+      async execute(args) {
+        const r = await manager.benchFullCtx(Number(args.port), {
+          profile: args.profile || null,
+          ctxTarget: args.ctxTarget,
+          maxTokens: args.maxTokens,
+        });
+        return `满上下文热测速 @${r.port}(${r.model || "?"}):decode ${r.tps} tok/s · prefill ${r.prefillTps ?? "-"} tok/s · TTFB ${r.ttfbMs}ms · ctx ${r.ctxAllocated ?? "?"}/${r.ctxTarget}${r.profile ? " · profile=" + r.profile : ""}`;
+      },
+    }),
+  );
+
   // ---------- webServer 同源路由:面板数据通道(GET)+ 动作通道(POST) ----------
   const webServer = ctx.webServer;
   if (webServer && typeof webServer.register === "function") {
@@ -506,7 +541,13 @@ export function apply(ctx) {
     webServer.register({
       kind: "exact",
       path: "/api/mm/profiles",
-      handler: getHandler("GET", async () => manager.listProfiles()),
+      handler: getHandler("GET", async () => {
+        // 盘面对应:为每个 profile 标注 modelMissing(modelPath 文件是否存在),面板据此打「缺失」徽标并禁用启动
+        const ps = manager.listProfiles();
+        return (Array.isArray(ps) ? ps : []).map((p) =>
+          Object.assign({}, p, { modelMissing: typeof p.modelPath === "string" && p.modelPath ? !existsSync(p.modelPath) : false })
+        );
+      }),
     });
     // 实测数据(benchmarks.json,最近 50 条;POST /api/mm/bench 写入)
     webServer.register({
@@ -556,6 +597,19 @@ export function apply(ctx) {
       handler: actionHandler("POST", async (input) => {
         const r = await manager.bench(Number(input.port), {
           profile: input.profile || null,
+          maxTokens: input.maxTokens,
+        });
+        return { ok: true, result: r };
+      }),
+    });
+    // 满上下文热测速:校验满上下文 + 流式 warmup/测量,落盘 benchmarks.json(scheme=full-ctx-warm-v2)
+    webServer.register({
+      kind: "exact",
+      path: "/api/mm/bench/fullctx",
+      handler: actionHandler("POST", async (input) => {
+        const r = await manager.benchFullCtx(Number(input.port), {
+          profile: input.profile || null,
+          ctxTarget: input.ctxTarget,
           maxTokens: input.maxTokens,
         });
         return { ok: true, result: r };

@@ -69,13 +69,14 @@ test("apply(fake ctx): 9 工具 + 2 路由 + 安全纪律 + P0 验收", async (t
 
   const names = tools.map((x) => x.name).sort();
   assert.deepEqual(names, [
-    "mm_bench",
+    "mm_bench", "mm_bench_fullctx",
     "mm_framework_list", "mm_framework_probe", "mm_framework_save",
     "mm_profile_delete", "mm_profile_import", "mm_profile_list", "mm_profile_load", "mm_profile_save",
     "mm_server_list", "mm_server_register", "mm_server_start", "mm_server_stop",
   ]);
   assert.deepEqual(routes.map((r) => r.path).sort(), [
     "/api/mm/bench",
+    "/api/mm/bench/fullctx",
     "/api/mm/benchmarks",
     "/api/mm/frameworks",
     "/api/mm/frameworks/probe",
