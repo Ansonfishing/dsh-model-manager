@@ -123,3 +123,13 @@ test("次要块折叠:托管参数/日志/测速/对比 → details.mm-fold(故�
   assert.match(src, /<details class="mm-cmp mm-fold">/);
   assert.match(src, /\.mm-root details > summary\{list-style:none;\}/);
 });
+
+test("菜单层级补丁:save 点击后关菜单(与 saveas/delete 一致)+ Escape 关菜单 + markDirty 更新菜单保存文案", () => {
+  // 实测 bug:harness 点「保存」菜单不关(原分支只 doSave())
+  assert.match(src, /act === "save"\) \{ setMoreOpen\(false\); doSave\(\); \}/);
+  // 键盘可关:root onKeyDown → Escape 收起 ⋯ 菜单
+  assert.match(src, /onKeyDown: onRootKey/);
+  assert.match(src, /ev\.key === "Escape" && moreOpen\) setMoreOpen\(false\)/);
+  // 菜单开着时编辑参数:markDirty 除解禁按钮外同步「● 保存」文案(文本只在 render 更新会滞后)
+  assert.match(src, /btn\.textContent = "● 保存";/);
+});
